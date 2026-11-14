@@ -86,7 +86,8 @@ function loadWhatsAppSettings(): WhatsAppSettings {
     const raw = localStorage.getItem(WA_SETTINGS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<WhatsAppSettings>;
-      const provider =
+      const apiKey = typeof parsed.apiKey === 'string' ? parsed.apiKey : '';
+      let provider: WhatsAppSettings['provider'] =
         parsed.provider === 'server' ||
         parsed.provider === 'fonnte' ||
         parsed.provider === 'callmebot' ||
@@ -94,11 +95,17 @@ function loadWhatsAppSettings(): WhatsAppSettings {
         parsed.provider === 'link'
           ? parsed.provider
           : 'server';
+
+      // Auto-migrate leftover empty personal CallMeBot/Fonnte config to centralized server mode
+      if ((provider === 'callmebot' || provider === 'fonnte') && !apiKey.trim()) {
+        provider = 'server';
+      }
+
       return {
         phone: typeof parsed.phone === 'string' ? parsed.phone : '',
         autoEnabled: parsed.autoEnabled !== undefined ? Boolean(parsed.autoEnabled) : false,
         provider,
-        apiKey: typeof parsed.apiKey === 'string' ? parsed.apiKey : '',
+        apiKey,
         webhookUrl: typeof parsed.webhookUrl === 'string' ? parsed.webhookUrl : '',
         dailyEnabled:
           parsed.dailyEnabled !== undefined ? Boolean(parsed.dailyEnabled) : true,
@@ -147,14 +154,88 @@ function saveNotifiedSet(set: Set<string>) {
   }
 }
 
-function fireBrowserNotification(title: string, body: string, tag: string) {
+let swRegisterPromise: Promise<ServiceWorkerRegistration | null> | null = null;
+
+function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return Promise.resolve(null);
+  }
+  if (!swRegisterPromise) {
+    swRegisterPromise = (async () => {
+      try {
+        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        const ready = await Promise.race<ServiceWorkerRegistration | null>([
+          navigator.serviceWorker.ready,
+          new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 3000)),
+        ]);
+        return ready;
+      } catch {
+        return null;
+      }
+    })();
+  }
+  return swRegisterPromise;
+}
+
+function playNotificationChime() {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    const notes = [587.33, 880]; // D5 -> A5 gentle chime
+
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+      gain.gain.setValueAtTime(0.001, now + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.12, now + idx * 0.12 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.28);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.12);
+      osc.stop(now + idx * 0.12 + 0.3);
+    });
+  } catch {
+    // Ignore autoplay restriction errors
+  }
+}
+
+async function fireBrowserNotification(title: string, body: string, tag: string) {
+  playNotificationChime();
   if (typeof window === 'undefined' || !('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
+
+  // Android Chrome requires ServiceWorkerRegistration.showNotification()
+  try {
+    const reg = await ensureServiceWorker();
+    if (reg && 'showNotification' in reg) {
+      await reg.showNotification(title, {
+        body,
+        tag,
+        icon: '/icon.svg',
+        badge: '/icon.svg',
+        vibrate: [200, 100, 200],
+        renotify: true,
+        requireInteraction: false,
+      } as NotificationOptions);
+      return;
+    }
+  } catch {
+    // Fallback to direct Notification constructor on desktop
+  }
 
   try {
     new Notification(title, {
       body,
       tag,
+      icon: '/icon.svg',
       requireInteraction: false,
     });
   } catch {
@@ -243,8 +324,9 @@ export function useScheduleReminders(
     }
   }, [waSettings]);
 
-  // Sync browser Notification permission changes if user revokes in browser settings
   useEffect(() => {
+    void ensureServiceWorker();
+
     const syncPermission = () => {
       const current = getPermissionState();
       setPermission(current);
@@ -365,13 +447,21 @@ export function useScheduleReminders(
     const waUrl = buildWhatsAppLink(waSettings.phone, waText);
 
     if (permission === 'granted') {
-      fireBrowserNotification(title, body, `test_${Date.now()}`);
+      await fireBrowserNotification(title, body, `test_${Date.now()}`);
     }
 
     let waStatus: string | undefined;
-    if (waSettings.autoEnabled && waSettings.provider !== 'link' && waSettings.phone.trim()) {
+    const canSendAutoWa =
+      waSettings.autoEnabled &&
+      waSettings.phone.trim() &&
+      waSettings.provider !== 'link' &&
+      (waSettings.provider !== 'server' || serverWaStatus.configured);
+
+    if (canSendAutoWa) {
       const res = await sendAutomatedWhatsAppWebhook(waSettings, waText);
       waStatus = res.detail;
+    } else if (waSettings.provider === 'server' && !serverWaStatus.configured) {
+      waStatus = 'Notifikasi browser aktif · ketuk tombol di bawah untuk kirim ke WA';
     }
 
     onInAppReminder?.({
@@ -387,6 +477,7 @@ export function useScheduleReminders(
     settings.leadMinutes,
     studentName,
     waSettings,
+    serverWaStatus.configured,
     onInAppReminder,
   ]);
 
@@ -467,12 +558,18 @@ export function useScheduleReminders(
       body: string,
       waCustomText?: string
     ) => {
-      fireBrowserNotification(title, body, eventKey);
+      await fireBrowserNotification(title, body, eventKey);
       const waText = waCustomText || buildReminderWhatsAppMessage(title, body, studentName);
       const waUrl = buildWhatsAppLink(waSettings.phone, waText);
 
       let waStatus: string | undefined;
-      if (waSettings.autoEnabled && waSettings.provider !== 'link' && waSettings.phone.trim()) {
+      const canSendAutoWa =
+        waSettings.autoEnabled &&
+        waSettings.phone.trim() &&
+        waSettings.provider !== 'link' &&
+        (waSettings.provider !== 'server' || serverWaStatus.configured);
+
+      if (canSendAutoWa) {
         const res = await sendAutomatedWhatsAppWebhook(waSettings, waText);
         waStatus = res.detail;
       }
@@ -597,7 +694,7 @@ export function useScheduleReminders(
     };
 
     checkUpcoming();
-    const intervalId = window.setInterval(checkUpcoming, 10000);
+    const intervalId = window.setInterval(checkUpcoming, 5000);
     const handleWake = () => {
       if (document.visibilityState === 'visible') {
         void checkUpcoming();
@@ -618,6 +715,7 @@ export function useScheduleReminders(
     settings.leadMinutes,
     studentName,
     waSettings,
+    serverWaStatus.configured,
     onInAppReminder,
   ]);
 
