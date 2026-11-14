@@ -1,0 +1,6 @@
+{
+  "name": "My Schedule",
+  "description": "Academic & Daily Student Planner dengan tema pastel lembut, kalender interaktif, manajemen 4 kategori jadwal, dan sinkronisasi cloud realtime.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
