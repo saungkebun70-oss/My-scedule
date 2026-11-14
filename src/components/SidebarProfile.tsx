@@ -20,6 +20,7 @@ import {
   MessageCircle,
   Moon,
   Plus,
+  QrCode,
   Send,
   Sparkles,
   Sun,
@@ -58,6 +59,7 @@ interface SidebarProfileProps {
   onSeedSamplePack: () => Promise<void>;
   onRequestClearAll: () => void;
   onAddSchedule: () => void;
+  onOpenShareQr: () => void;
   onLogout: () => void;
   reminderSettings: ReminderSettings;
   waSettings: WhatsAppSettings;
@@ -89,6 +91,7 @@ export default function SidebarProfile({
   onSeedSamplePack,
   onRequestClearAll,
   onAddSchedule,
+  onOpenShareQr,
   onLogout,
   reminderSettings,
   waSettings,
@@ -534,6 +537,20 @@ export default function SidebarProfile({
             <span className="truncate">Login Google / Sync Cloud</span>
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={onOpenShareQr}
+          className="w-full min-h-[42px] px-3.5 py-2 rounded-2xl bg-[#F0F7FD] hover:bg-[#DAEAF6] dark:bg-sky-950/70 dark:hover:bg-sky-900/70 text-[#1E40AF] dark:text-sky-300 text-xs font-bold flex items-center justify-between gap-2.5 transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-2.5 min-w-0">
+            <QrCode className="w-4 h-4 shrink-0" />
+            <span className="truncate">Bagikan QR Link Vercel</span>
+          </span>
+          <span className="px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-white/80 dark:bg-sky-900/80 text-[#1E40AF] dark:text-sky-200 shrink-0">
+            QR
+          </span>
+        </button>
 
         <button
           type="button"

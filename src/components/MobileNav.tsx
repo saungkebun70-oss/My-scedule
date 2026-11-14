@@ -1,4 +1,4 @@
-import { CalendarDays, Cloud, HardDrive, Home, ListTodo, Moon, Plus, Sun, User } from 'lucide-react';
+import { CalendarDays, Cloud, HardDrive, Home, ListTodo, Moon, Plus, QrCode, Sun, User } from 'lucide-react';
 
 export type MobileTab = 'beranda' | 'kalender' | 'jadwal' | 'profil';
 
@@ -15,12 +15,14 @@ export function MobileTopBar({
   isDark,
   onToggleTheme,
   onOpenAuth,
+  onOpenShareQr,
 }: {
   isLocalMode: boolean;
   isFirebaseAvailable: boolean;
   isDark: boolean;
   onToggleTheme: () => void;
   onOpenAuth: () => void;
+  onOpenShareQr: () => void;
 }) {
   return (
     <header className="lg:hidden sticky top-0 z-30 h-13 px-4 bg-[#FAF9F6]/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800/80 flex items-center justify-between gap-2 transition-colors">
@@ -40,7 +42,7 @@ export function MobileTopBar({
         </span>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0">
         {isLocalMode && isFirebaseAvailable ? (
           <button
             type="button"
@@ -48,7 +50,7 @@ export function MobileTopBar({
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold shrink-0 whitespace-nowrap bg-[#FFF8E7] hover:bg-[#FEF3C7] dark:bg-amber-950/70 dark:hover:bg-amber-900/70 text-amber-800 dark:text-amber-300 border border-[#FDE68A] dark:border-amber-800/70 cursor-pointer"
           >
             <HardDrive className="w-3.5 h-3.5" />
-            <span>Local · Sync Cloud</span>
+            <span>Local · Sync</span>
           </button>
         ) : (
           <span
@@ -62,6 +64,16 @@ export function MobileTopBar({
             <span>{isLocalMode ? 'Local Mode' : 'Cloud Synced'}</span>
           </span>
         )}
+
+        <button
+          type="button"
+          onClick={onOpenShareQr}
+          aria-label="Bagikan QR Link Vercel"
+          title="QR Link App Vercel"
+          className="min-w-[38px] min-h-[38px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 text-[#5B21B6] dark:text-violet-300 hover:bg-[#F5F0FC] dark:hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+        >
+          <QrCode className="w-4 h-4" />
+        </button>
 
         <button
           type="button"

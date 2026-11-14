@@ -29,14 +29,36 @@ interface AuthPageProps {
   onEnterLocalMode: (name?: string) => void;
   isModal?: boolean;
   onClose?: () => void;
+  initialMode?: 'login' | 'register';
+}
+
+function resolveInitialAuthMode(fallback?: 'login' | 'register'): 'login' | 'register' {
+  if (fallback) return fallback;
+  if (typeof window === 'undefined') return 'login';
+  const params = new URLSearchParams(window.location.search);
+  const authParam = (params.get('auth') || params.get('mode') || '').toLowerCase();
+  const path = window.location.pathname.toLowerCase();
+  if (
+    authParam === 'daftar' ||
+    authParam === 'register' ||
+    authParam === 'signup' ||
+    path === '/daftar' ||
+    path === '/register'
+  ) {
+    return 'register';
+  }
+  return 'login';
 }
 
 export default function AuthPage({
   onEnterLocalMode,
   isModal = false,
   onClose,
+  initialMode,
 }: AuthPageProps) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register'>(() =>
+    resolveInitialAuthMode(initialMode)
+  );
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -363,14 +385,17 @@ export default function AuthPage({
       </form>
 
       {!isModal && (
-        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center space-y-2">
+          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            Setiap akun memiliki ruang jadwal pribadi yang terpisah &amp; tersinkron otomatis.
+          </p>
           <button
             type="button"
             onClick={() => onEnterLocalMode(name.trim() || undefined)}
-            className="inline-flex items-center justify-center gap-2 min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-[#2D3748] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 min-h-[38px] px-4 py-1.5 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-[#2D3748] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <HardDrive className="w-3.5 h-3.5" />
-            <span>Masuk Otomatis Tanpa Akun (Mode Lokal)</span>
+            <span>Coba Tanpa Akun (Sementara di Perangkat Ini)</span>
           </button>
         </div>
       )}

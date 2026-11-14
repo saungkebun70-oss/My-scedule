@@ -10,6 +10,7 @@ import {
   ListTodo,
   MessageCircle,
   Moon,
+  QrCode,
   Sun,
   User,
   X,
@@ -23,6 +24,7 @@ import MobileNav, { MobileTopBar, type MobileTab } from './components/MobileNav'
 import NotificationPermissionModal from './components/NotificationPermissionModal';
 import ScheduleList from './components/ScheduleList';
 import ScheduleModal from './components/ScheduleModal';
+import ShareQrModal from './components/ShareQrModal';
 import SidebarProfile from './components/SidebarProfile';
 import {
   useScheduleReminders,
@@ -91,6 +93,7 @@ export default function App() {
 
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ScheduleItem | null>(null);
+  const [shareQrOpen, setShareQrOpen] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
 
   const [bannerMessage, setBannerMessage] = useState<{
@@ -179,23 +182,26 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [bannerMessage]);
 
-  // Listen to Firebase Auth (automatic Cloud mode when configured, automatic Local fallback otherwise)
+  // Listen to Firebase Auth (always show Login/Register screen to new unauthenticated visitors)
   useEffect(() => {
     const savedLocalRaw = localStorage.getItem(LOCAL_SESSION_KEY);
+    const params = new URLSearchParams(window.location.search);
+    const requestedAuthEntry =
+      Boolean(params.get('auth') || params.get('mode')) ||
+      ['/daftar', '/register', '/login', '/masuk'].includes(
+        window.location.pathname.toLowerCase()
+      );
 
     if (!isFirebaseConfigured || !auth) {
       if (savedLocalRaw) {
         try {
           setUser(JSON.parse(savedLocalRaw) as AuthUser);
         } catch {
-          const guest = createDefaultLocalUser();
-          localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(guest));
-          setUser(guest);
+          localStorage.removeItem(LOCAL_SESSION_KEY);
+          setUser(null);
         }
       } else {
-        const guest = createDefaultLocalUser();
-        localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(guest));
-        setUser(guest);
+        setUser(null);
       }
       setIsLocalMode(true);
       setAuthReady(true);
@@ -214,11 +220,15 @@ export default function App() {
           photoURL: fbUser.photoURL,
           isLocal: false,
         });
-      } else if (savedLocalRaw) {
+        if (requestedAuthEntry) {
+          window.history.replaceState({}, '', '/');
+        }
+      } else if (savedLocalRaw && !requestedAuthEntry) {
         try {
           setIsLocalMode(true);
           setUser(JSON.parse(savedLocalRaw) as AuthUser);
         } catch {
+          localStorage.removeItem(LOCAL_SESSION_KEY);
           setUser(null);
         }
       } else {
@@ -374,6 +384,7 @@ export default function App() {
     setModalOpen(false);
     setDeleteTarget(null);
     setClearConfirmOpen(false);
+    setShareQrOpen(false);
     setQuickWaPhone('');
     setSearchQuery('');
     setActiveCategory('all');
@@ -482,6 +493,7 @@ export default function App() {
         isDark={isDark}
         onToggleTheme={toggleTheme}
         onOpenAuth={() => setAuthModalOpen(true)}
+        onOpenShareQr={() => setShareQrOpen(true)}
       />
 
       {/* Toast Notification Banner */}
@@ -567,6 +579,7 @@ export default function App() {
               onSeedSamplePack={handleSeedSamplePack}
               onRequestClearAll={() => setClearConfirmOpen(true)}
               onAddSchedule={openAddModal}
+              onOpenShareQr={() => setShareQrOpen(true)}
               onLogout={handleLogout}
               reminderSettings={reminderSettings}
               waSettings={waSettings}
@@ -610,10 +623,19 @@ export default function App() {
                 })}
               </div>
 
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-2.5 shrink-0">
                 <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 tabular-nums whitespace-nowrap">
                   {schedules.length} total agenda
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setShareQrOpen(true)}
+                  aria-label="Bagikan QR Link Vercel"
+                  className="min-h-[36px] px-3 py-1.5 rounded-xl bg-[#F0F7FD] hover:bg-[#DAEAF6] dark:bg-sky-950/70 dark:hover:bg-sky-900/70 border border-[#BFDBFE]/80 dark:border-sky-800/70 text-xs font-bold text-[#1E40AF] dark:text-sky-300 inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Bagikan QR</span>
+                </button>
                 <button
                   type="button"
                   onClick={toggleTheme}
@@ -829,6 +851,7 @@ export default function App() {
                         onSeedSamplePack={handleSeedSamplePack}
                         onRequestClearAll={() => setClearConfirmOpen(true)}
                         onAddSchedule={openAddModal}
+                        onOpenShareQr={() => setShareQrOpen(true)}
                         onLogout={handleLogout}
                         reminderSettings={reminderSettings}
                         waSettings={waSettings}
@@ -1010,6 +1033,9 @@ export default function App() {
         onAllow={handleAllowNotifications}
         onDeny={handleDenyNotifications}
       />
+
+      {/* QR Code Share Modal (Vercel App URL) */}
+      <ShareQrModal open={shareQrOpen} onClose={() => setShareQrOpen(false)} />
     </div>
   );
 }
