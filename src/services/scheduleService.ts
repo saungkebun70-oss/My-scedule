@@ -646,7 +646,7 @@ export async function createScheduleItem(
   userId: string,
   input: NewScheduleInput,
   isLocalMode: boolean
-): Promise<void> {
+): Promise<string> {
   const payload = {
     uid: userId,
     category: input.category as ScheduleCategory,
@@ -673,7 +673,7 @@ export async function createScheduleItem(
       updatedAt: new Date().toISOString(),
     };
     writeLocalSchedules(userId, [...existing, created]);
-    return;
+    return created.id;
   }
 
   const id = generateClientId();
@@ -687,6 +687,7 @@ export async function createScheduleItem(
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
   }
+  return id;
 }
 
 export async function updateScheduleItem(

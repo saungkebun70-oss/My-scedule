@@ -9,6 +9,8 @@ import {
   Home,
   ListTodo,
   MessageCircle,
+  Moon,
+  Sun,
   User,
   X,
 } from 'lucide-react';
@@ -18,6 +20,7 @@ import ConfirmDialog from './components/ConfirmDialog';
 import DashboardOverview from './components/DashboardOverview';
 import DatePreviewModal from './components/DatePreviewModal';
 import MobileNav, { MobileTopBar, type MobileTab } from './components/MobileNav';
+import NotificationPermissionModal from './components/NotificationPermissionModal';
 import ScheduleList from './components/ScheduleList';
 import ScheduleModal from './components/ScheduleModal';
 import SidebarProfile from './components/SidebarProfile';
@@ -25,6 +28,7 @@ import {
   useScheduleReminders,
   type InAppReminderAlert,
 } from './hooks/useScheduleReminders';
+import { useTheme } from './hooks/useTheme';
 import { auth, isFirebaseConfigured } from './lib/firebase';
 import {
   addSampleSchedulePack,
@@ -47,6 +51,10 @@ import {
   type StudentProfile,
 } from './types/schedule';
 import { formatDateKey } from './utils/dateUtils';
+import {
+  removeCustomWaReminderTime,
+  setCustomWaReminderTime,
+} from './utils/whatsappUtils';
 
 const LOCAL_SESSION_KEY = 'my_schedule_local_user';
 
@@ -61,6 +69,7 @@ function createDefaultLocalUser(customName?: string): AuthUser {
 }
 
 export default function App() {
+  const { isDark, toggleTheme } = useTheme();
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLocalMode, setIsLocalMode] = useState(!isFirebaseConfigured);
@@ -89,6 +98,9 @@ export default function App() {
     tone: 'info' | 'error';
   } | null>(null);
   const [reminderAlert, setReminderAlert] = useState<InAppReminderAlert | null>(null);
+  const [quickWaPhone, setQuickWaPhone] = useState('');
+  const [dismissWaBanner, setDismissWaBanner] = useState(false);
+  const [permissionBusy, setPermissionBusy] = useState(false);
 
   const todayKey = formatDateKey(new Date());
 
@@ -101,15 +113,43 @@ export default function App() {
   }, []);
 
   const {
+    consent,
+    notificationsAllowed,
     settings: reminderSettings,
     waSettings,
+    serverWaStatus,
     permission: notificationPermission,
+    grantNotificationConsent,
+    denyNotificationConsent,
     toggleReminders,
     setLeadMinutes,
     updateWhatsAppSettings,
     sendTestNotification,
+    sendTestWhatsAppNow,
     sendDailySummaryToWhatsAppWebhook,
   } = useScheduleReminders(schedules, profile?.nama, handleInAppReminder);
+
+  const handleAllowNotifications = useCallback(async () => {
+    setPermissionBusy(true);
+    try {
+      const result = await grantNotificationConsent();
+      if (result === 'granted') {
+        showToast('Izin disetujui! Pengingat jadwal & WhatsApp otomatis langsung aktif.');
+      } else {
+        showToast(
+          'Izin notifikasi diblokir browser — notifikasi tidak akan bekerja. Aktifkan izin notifikasi di pengaturan browser.',
+          'error'
+        );
+      }
+    } finally {
+      setPermissionBusy(false);
+    }
+  }, [grantNotificationConsent, showToast]);
+
+  const handleDenyNotifications = useCallback(() => {
+    denyNotificationConsent();
+    showToast('Notifikasi dinonaktifkan. Anda dapat mengizinkannya kapan saja di menu Profil.', 'error');
+  }, [denyNotificationConsent, showToast]);
 
   const handleSendDailyWhatsApp = useCallback(async () => {
     const res = await sendDailySummaryToWhatsAppWebhook();
@@ -349,13 +389,15 @@ export default function App() {
     }
   };
 
-  const handleSaveSchedule = async (data: NewScheduleInput) => {
+  const handleSaveSchedule = async (data: NewScheduleInput, customWaTime: string) => {
     if (!user) return;
     if (editingItem) {
       await updateScheduleItem(user.uid, editingItem.id, data, isLocalMode);
+      setCustomWaReminderTime(editingItem.id, customWaTime);
       showToast('Perubahan jadwal tersimpan.');
     } else {
-      await createScheduleItem(user.uid, data, isLocalMode);
+      const createdId = await createScheduleItem(user.uid, data, isLocalMode);
+      setCustomWaReminderTime(createdId, customWaTime);
       showToast('Jadwal baru berhasil ditambahkan.');
     }
   };
@@ -370,6 +412,7 @@ export default function App() {
     setActionBusy(true);
     try {
       await deleteScheduleItem(user.uid, deleteTarget.id, isLocalMode);
+      removeCustomWaReminderTime(deleteTarget.id);
       setDeleteTarget(null);
       showToast('Jadwal berhasil dihapus.');
     } finally {
@@ -389,10 +432,10 @@ export default function App() {
 
   if (!authReady) {
     return (
-      <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center p-6">
-        <div className="w-full max-w-sm rounded-3xl bg-white border border-slate-200/80 p-8 text-center shadow-[0_8px_32px_rgba(45,55,72,0.05)]">
-          <div className="w-12 h-12 rounded-2xl bg-[#E8DFF5] mx-auto animate-pulse" />
-          <p className="mt-4 text-sm font-bold text-[#2D3748]">Menyiapkan My Schedule...</p>
+      <div className="min-h-screen bg-[#FAF9F6] dark:bg-slate-950 flex items-center justify-center p-6 transition-colors">
+        <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-8 text-center shadow-[0_8px_32px_rgba(45,55,72,0.05)]">
+          <div className="w-12 h-12 rounded-2xl bg-[#E8DFF5] dark:bg-violet-950/80 mx-auto animate-pulse" />
+          <p className="mt-4 text-sm font-bold text-[#2D3748] dark:text-slate-100">Menyiapkan My Schedule...</p>
         </div>
       </div>
     );
@@ -410,10 +453,12 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] text-[#2D3748] pb-24 lg:pb-10">
+    <div className="min-h-screen bg-[#FAF9F6] dark:bg-slate-950 text-[#2D3748] dark:text-slate-100 pb-24 lg:pb-10 transition-colors">
       <MobileTopBar
         isLocalMode={isLocalMode}
         isFirebaseAvailable={isFirebaseConfigured}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
         onOpenAuth={() => setAuthModalOpen(true)}
       />
 
@@ -424,8 +469,8 @@ export default function App() {
             role="status"
             className={`rounded-2xl px-4 py-3 text-xs font-bold shadow-[0_12px_30px_rgba(45,55,72,0.12)] border ${
               bannerMessage.tone === 'error'
-                ? 'bg-[#FFF3F5] text-[#9D174D] border-[#FBCFE8]'
-                : 'bg-white text-[#2D3748] border-slate-200'
+                ? 'bg-[#FFF3F5] text-[#9D174D] border-[#FBCFE8] dark:bg-pink-950/90 dark:text-pink-200 dark:border-pink-800'
+                : 'bg-white text-[#2D3748] border-slate-200 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700'
             }`}
           >
             {bannerMessage.text}
@@ -438,20 +483,20 @@ export default function App() {
         <div className="fixed bottom-20 lg:bottom-6 right-4 left-4 sm:left-auto sm:max-w-sm z-50">
           <div
             role="alert"
-            className="rounded-2xl bg-white border border-[#BFDBFE] p-4 shadow-[0_14px_36px_rgba(30,64,175,0.16)] flex items-start gap-3"
+            className="rounded-2xl bg-white dark:bg-slate-900 border border-[#BFDBFE] dark:border-sky-800/80 p-4 shadow-[0_14px_36px_rgba(30,64,175,0.16)] dark:shadow-[0_14px_36px_rgba(0,0,0,0.45)] flex items-start gap-3"
           >
-            <div className="w-9 h-9 rounded-xl bg-[#DAEAF6] text-[#1E40AF] flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[#DAEAF6] dark:bg-sky-950/80 text-[#1E40AF] dark:text-sky-300 flex items-center justify-center shrink-0">
               <BellRing className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-extrabold text-[#2D3748]">
+              <p className="text-xs font-extrabold text-[#2D3748] dark:text-slate-100">
                 {reminderAlert.title}
               </p>
-              <p className="mt-0.5 text-xs text-slate-600 leading-relaxed">
+              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                 {reminderAlert.body}
               </p>
               {reminderAlert.waStatus && (
-                <p className="mt-1 text-[11px] font-bold text-[#065F46]">
+                <p className="mt-1 text-[11px] font-bold text-[#065F46] dark:text-emerald-300">
                   Status WA: {reminderAlert.waStatus}
                 </p>
               )}
@@ -460,7 +505,7 @@ export default function App() {
                   href={reminderAlert.waUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E2ECE9] hover:bg-[#CBE3DC] text-[#065F46] text-[11px] font-bold transition-colors"
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E2ECE9] hover:bg-[#CBE3DC] dark:bg-emerald-950/80 dark:hover:bg-emerald-900/80 text-[#065F46] dark:text-emerald-300 text-[11px] font-bold transition-colors"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   <span>Kirim ke WhatsApp</span>
@@ -470,7 +515,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setReminderAlert(null)}
-              className="min-w-[32px] min-h-[32px] rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer shrink-0"
+              className="min-w-[32px] min-h-[32px] rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 cursor-pointer shrink-0"
               aria-label="Tutup pengingat"
             >
               <X className="w-4 h-4" />
@@ -489,6 +534,8 @@ export default function App() {
               userEmail={user.email}
               isLocalMode={isLocalMode}
               isFirebaseAvailable={isFirebaseConfigured}
+              isDark={isDark}
+              onToggleTheme={toggleTheme}
               activePage={activePage}
               totalSchedulesCount={schedules.length}
               todaySchedulesCount={todayCount}
@@ -501,11 +548,15 @@ export default function App() {
               onLogout={handleLogout}
               reminderSettings={reminderSettings}
               waSettings={waSettings}
+              serverWaStatus={serverWaStatus}
+              notificationsAllowed={notificationsAllowed}
               notificationPermission={notificationPermission}
+              onRequestPermission={handleAllowNotifications}
               onToggleReminders={toggleReminders}
               onChangeLeadMinutes={setLeadMinutes}
               onUpdateWhatsAppSettings={updateWhatsAppSettings}
               onTestNotification={sendTestNotification}
+              onTestWhatsApp={sendTestWhatsAppNow}
               onSendDailyWhatsApp={handleSendDailyWhatsApp}
             />
           </aside>
@@ -513,7 +564,7 @@ export default function App() {
           {/* Main Workspace */}
           <main className="flex-1 min-w-0 w-full space-y-6">
             {/* Desktop Top Page Switcher Bar */}
-            <div className="hidden lg:flex items-center justify-between gap-4 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200/80 px-4 py-2.5 shadow-[0_4px_20px_rgba(45,55,72,0.03)]">
+            <div className="hidden lg:flex items-center justify-between gap-4 rounded-3xl bg-white/85 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 px-4 py-2.5 shadow-[0_4px_20px_rgba(45,55,72,0.03)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.25)]">
               <div className="flex items-center gap-1.5">
                 {pageNavTabs.map((tab) => {
                   const Icon = tab.icon;
@@ -526,8 +577,8 @@ export default function App() {
                       aria-current={active ? 'page' : undefined}
                       className={`min-h-[40px] px-4 py-2 rounded-2xl text-xs font-bold inline-flex items-center gap-2 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                         active
-                          ? 'bg-[#2D3748] text-white shadow-xs'
-                          : 'text-slate-600 hover:bg-[#FAF9F6] hover:text-[#2D3748]'
+                          ? 'bg-[#2D3748] text-white shadow-xs dark:bg-violet-600 dark:text-white'
+                          : 'text-slate-600 hover:bg-[#FAF9F6] hover:text-[#2D3748] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100'
                       }`}
                     >
                       <Icon className="w-4 h-4 shrink-0" />
@@ -537,17 +588,37 @@ export default function App() {
                 })}
               </div>
 
-              <span className="text-xs font-semibold text-slate-400 tabular-nums whitespace-nowrap pr-2">
-                {schedules.length} total agenda
-              </span>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 tabular-nums whitespace-nowrap">
+                  {schedules.length} total agenda
+                </span>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label={isDark ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}
+                  className="min-h-[36px] px-3 py-1.5 rounded-xl bg-[#FAF9F6] hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-200 inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  {isDark ? (
+                    <>
+                      <Sun className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Mode Terang</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="w-3.5 h-3.5 text-violet-600" />
+                      <span>Mode Gelap</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {dataLoading && schedules.length === 0 ? (
               <div className="space-y-5">
-                <div className="h-44 rounded-3xl bg-white/80 border border-slate-200/70 animate-pulse" />
+                <div className="h-44 rounded-3xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 animate-pulse" />
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-                  <div className="xl:col-span-5 h-80 rounded-3xl bg-white/80 border border-slate-200/70 animate-pulse" />
-                  <div className="xl:col-span-7 h-80 rounded-3xl bg-white/80 border border-slate-200/70 animate-pulse" />
+                  <div className="xl:col-span-5 h-80 rounded-3xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 animate-pulse" />
+                  <div className="xl:col-span-7 h-80 rounded-3xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 animate-pulse" />
                 </div>
               </div>
             ) : (
@@ -555,6 +626,87 @@ export default function App() {
                 {/* PAGE 1: BERANDA */}
                 {activePage === 'beranda' && (
                   <div className="space-y-6">
+                    {!notificationsAllowed && consent === 'denied' && (
+                      <div className="rounded-3xl bg-[#FFF3F5] dark:bg-pink-950/40 border border-[#FBCFE8] dark:border-pink-800/70 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-2xl bg-[#FCE1E4] dark:bg-pink-900/70 text-[#9D174D] dark:text-pink-300 flex items-center justify-center shrink-0">
+                            <BellRing className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-extrabold text-[#9D174D] dark:text-pink-200">
+                              Notifikasi Tidak Bekerja (Izin Ditolak)
+                            </p>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                              Pengingat jadwal dan WhatsApp otomatis dinonaktifkan sampai Anda menekan tombol Izinkan.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAllowNotifications}
+                          disabled={permissionBusy}
+                          className="min-h-[38px] px-4 py-1.5 rounded-xl bg-[#2D3748] hover:bg-[#1E293B] dark:bg-violet-600 dark:hover:bg-violet-500 text-white text-xs font-bold transition-colors cursor-pointer shrink-0 disabled:opacity-60"
+                        >
+                          Izinkan Sekarang
+                        </button>
+                      </div>
+                    )}
+
+                    {notificationsAllowed && !waSettings.phone.trim() && !dismissWaBanner && (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!quickWaPhone.trim()) return;
+                          updateWhatsAppSettings({
+                            phone: quickWaPhone.trim(),
+                            autoEnabled: true,
+                          });
+                          showToast(
+                            `Nomor WA ${quickWaPhone.trim()} tersimpan! Rekap pagi 07:00 & pengingat jadwal aktif otomatis.`
+                          );
+                        }}
+                        className="rounded-3xl bg-[#F1F8F6] dark:bg-emerald-950/40 border border-[#B7E1D5] dark:border-emerald-800/70 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-2xl bg-[#E2ECE9] dark:bg-emerald-900/80 text-[#065F46] dark:text-emerald-300 flex items-center justify-center shrink-0">
+                            <MessageCircle className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-extrabold text-[#065F46] dark:text-emerald-200">
+                              Aktifkan Notif WhatsApp Otomatis
+                            </p>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                              Cukup isi nomor WA sekali — rekap pagi {waSettings.dailyTime} & pengingat matkul/deadline langsung aktif tanpa pengaturan rumit.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <input
+                            type="tel"
+                            value={quickWaPhone}
+                            onChange={(e) => setQuickWaPhone(e.target.value)}
+                            placeholder="081234567890"
+                            className="w-36 sm:w-40 min-h-[38px] px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-[#B7E1D5] dark:border-emerald-800 text-xs font-semibold text-[#2D3748] dark:text-slate-100 tabular-nums focus:outline-none focus:ring-2 focus:ring-[#10B981]/30"
+                          />
+                          <button
+                            type="submit"
+                            className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-[#065F46] hover:bg-[#047857] dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white text-xs font-bold transition-colors cursor-pointer whitespace-nowrap"
+                          >
+                            Aktifkan
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDismissWaBanner(true)}
+                            aria-label="Tutup"
+                            className="min-w-[34px] min-h-[34px] rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
                     <DashboardOverview
                       profile={profile}
                       schedules={schedules}
@@ -644,6 +796,8 @@ export default function App() {
                         userEmail={user.email}
                         isLocalMode={isLocalMode}
                         isFirebaseAvailable={isFirebaseConfigured}
+                        isDark={isDark}
+                        onToggleTheme={toggleTheme}
                         activePage={activePage}
                         totalSchedulesCount={schedules.length}
                         todaySchedulesCount={todayCount}
@@ -656,61 +810,65 @@ export default function App() {
                         onLogout={handleLogout}
                         reminderSettings={reminderSettings}
                         waSettings={waSettings}
+                        serverWaStatus={serverWaStatus}
+                        notificationsAllowed={notificationsAllowed}
                         notificationPermission={notificationPermission}
+                        onRequestPermission={handleAllowNotifications}
                         onToggleReminders={toggleReminders}
                         onChangeLeadMinutes={setLeadMinutes}
                         onUpdateWhatsAppSettings={updateWhatsAppSettings}
                         onTestNotification={sendTestNotification}
+                        onTestWhatsApp={sendTestWhatsAppNow}
                         onSendDailyWhatsApp={handleSendDailyWhatsApp}
                       />
                     </div>
 
                     {/* Academic Summary & Category Breakdown (visible on all sizes in Profil tab) */}
-                    <section className="rounded-3xl bg-white/90 backdrop-blur-md border border-slate-200/80 p-6 shadow-[0_4px_24px_rgba(45,55,72,0.04)]">
-                      <h2 className="text-xl font-extrabold text-[#2D3748] font-display">
+                    <section className="rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-6 shadow-[0_4px_24px_rgba(45,55,72,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)]">
+                      <h2 className="text-xl font-extrabold text-[#2D3748] dark:text-slate-100 font-display">
                         Ringkasan Akademik &amp; Produktivitas
                       </h2>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         Statistik jadwal kuliah, rutinitas, dan tugas yang tersimpan di akunmu.
                       </p>
 
                       <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-                        <div className="rounded-2xl bg-[#F5F0FC] border border-[#DDD6FE]/70 p-4">
-                          <div className="flex items-center gap-2 text-xs font-bold text-[#5B21B6]">
+                        <div className="rounded-2xl bg-[#F5F0FC] dark:bg-violet-950/50 border border-[#DDD6FE]/70 dark:border-violet-800/60 p-4">
+                          <div className="flex items-center gap-2 text-xs font-bold text-[#5B21B6] dark:text-violet-300">
                             <BookOpen className="w-4 h-4" />
                             <span>Total SKS</span>
                           </div>
-                          <p className="mt-2 text-2xl font-extrabold text-[#2D3748] tabular-nums">
+                          <p className="mt-2 text-2xl font-extrabold text-[#2D3748] dark:text-slate-100 tabular-nums">
                             {academicStats.totalSks}
                           </p>
                         </div>
 
-                        <div className="rounded-2xl bg-[#F1F8F6] border border-[#B7E1D5]/70 p-4">
-                          <div className="flex items-center gap-2 text-xs font-bold text-[#065F46]">
+                        <div className="rounded-2xl bg-[#F1F8F6] dark:bg-emerald-950/50 border border-[#B7E1D5]/70 dark:border-emerald-800/60 p-4">
+                          <div className="flex items-center gap-2 text-xs font-bold text-[#065F46] dark:text-emerald-300">
                             <CheckCircle2 className="w-4 h-4" />
                             <span>Selesai</span>
                           </div>
-                          <p className="mt-2 text-2xl font-extrabold text-[#2D3748] tabular-nums">
+                          <p className="mt-2 text-2xl font-extrabold text-[#2D3748] dark:text-slate-100 tabular-nums">
                             {academicStats.completedTotal}
                           </p>
                         </div>
 
-                        <div className="rounded-2xl bg-[#F0F7FD] border border-[#BFDBFE]/70 p-4">
-                          <div className="flex items-center gap-2 text-xs font-bold text-[#1E40AF]">
+                        <div className="rounded-2xl bg-[#F0F7FD] dark:bg-sky-950/50 border border-[#BFDBFE]/70 dark:border-sky-800/60 p-4">
+                          <div className="flex items-center gap-2 text-xs font-bold text-[#1E40AF] dark:text-sky-300">
                             <Clock className="w-4 h-4" />
                             <span>Deadline Aktif</span>
                           </div>
-                          <p className="mt-2 text-2xl font-extrabold text-[#2D3748] tabular-nums">
+                          <p className="mt-2 text-2xl font-extrabold text-[#2D3748] dark:text-slate-100 tabular-nums">
                             {academicStats.pendingDeadlines}
                           </p>
                         </div>
 
-                        <div className="rounded-2xl bg-[#FFF3F5] border border-[#FBCFE8]/70 p-4">
-                          <div className="flex items-center gap-2 text-xs font-bold text-[#9D174D]">
+                        <div className="rounded-2xl bg-[#FFF3F5] dark:bg-pink-950/50 border border-[#FBCFE8]/70 dark:border-pink-800/60 p-4">
+                          <div className="flex items-center gap-2 text-xs font-bold text-[#9D174D] dark:text-pink-300">
                             <ListTodo className="w-4 h-4" />
                             <span>Total Agenda</span>
                           </div>
-                          <p className="mt-2 text-2xl font-extrabold text-[#2D3748] tabular-nums">
+                          <p className="mt-2 text-2xl font-extrabold text-[#2D3748] dark:text-slate-100 tabular-nums">
                             {academicStats.totalItems}
                           </p>
                         </div>
@@ -725,7 +883,7 @@ export default function App() {
                               setActiveCategory(meta.id);
                               handleSelectPage('jadwal');
                             }}
-                            className="text-left rounded-2xl bg-[#FAF9F6] hover:bg-slate-100/80 border border-slate-200/70 p-4 transition-colors flex items-center justify-between gap-3 cursor-pointer"
+                            className="text-left rounded-2xl bg-[#FAF9F6] hover:bg-slate-100/80 dark:bg-slate-800/70 dark:hover:bg-slate-800 border border-slate-200/70 dark:border-slate-700 p-4 transition-colors flex items-center justify-between gap-3 cursor-pointer"
                           >
                             <div className="flex items-center gap-3">
                               <span
@@ -733,10 +891,10 @@ export default function App() {
                                 style={{ backgroundColor: meta.dotColor }}
                               />
                               <div>
-                                <p className="text-sm font-bold text-[#2D3748]">
+                                <p className="text-sm font-bold text-[#2D3748] dark:text-slate-100">
                                   {meta.label}
                                 </p>
-                                <p className="text-xs text-slate-500 tabular-nums">
+                                <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                                   {done} selesai dari {count} jadwal
                                 </p>
                               </div>
@@ -820,6 +978,14 @@ export default function App() {
         loading={actionBusy}
         onConfirm={handleConfirmDeleteItem}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* 1-Click Notification Permission Gate */}
+      <NotificationPermissionModal
+        open={consent === 'pending'}
+        busy={permissionBusy}
+        onAllow={handleAllowNotifications}
+        onDeny={handleDenyNotifications}
       />
     </div>
   );

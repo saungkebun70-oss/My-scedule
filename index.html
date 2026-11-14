@@ -26,8 +26,17 @@
       href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
+    <script>
+      (function () {
+        try {
+          if (localStorage.getItem('my_schedule_theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-[#FAF9F6] text-[#2D3748] antialiased selection:bg-[#E8DFF5] selection:text-[#2D3748]">
+  <body class="bg-[#FAF9F6] text-[#2D3748] dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-[#E8DFF5] selection:text-[#2D3748] dark:selection:bg-violet-900/60 dark:selection:text-slate-100">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

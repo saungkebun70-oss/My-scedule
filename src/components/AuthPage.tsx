@@ -142,13 +142,13 @@ export default function AuthPage({
     : 'https://console.firebase.google.com/';
 
   const authCard = (
-    <div className="w-full rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-[0_20px_50px_rgba(45,55,72,0.14)] flex flex-col justify-center">
+    <div className="w-full rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-[0_20px_50px_rgba(45,55,72,0.14)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.45)] flex flex-col justify-center">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-[#2D3748] font-display">
+          <h2 className="text-xl sm:text-2xl font-bold text-[#2D3748] dark:text-slate-100 font-display">
             {mode === 'login' ? 'Sinkronisasi Cloud' : 'Buat Akun Planner'}
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {mode === 'login'
               ? 'Masuk agar jadwalmu tersimpan & sinkron realtime di semua perangkat.'
               : 'Daftar gratis untuk sinkronisasi cloud antar HP dan laptop.'}
@@ -158,20 +158,20 @@ export default function AuthPage({
           <button
             type="button"
             onClick={onClose}
-            className="min-w-[40px] min-h-[40px] rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+            className="min-w-[40px] min-h-[40px] rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
             aria-label="Tutup dialog login"
           >
             <X className="w-5 h-5" />
           </button>
         ) : (
-          <div className="w-11 h-11 rounded-2xl bg-[#FCE1E4] text-[#9D174D] flex items-center justify-center shrink-0">
+          <div className="w-11 h-11 rounded-2xl bg-[#FCE1E4] dark:bg-pink-950/70 text-[#9D174D] dark:text-pink-300 flex items-center justify-center shrink-0">
             <Sparkles className="w-5 h-5" />
           </div>
         )}
       </div>
 
       {/* Mode Tabs */}
-      <div className="mt-5 grid grid-cols-2 gap-1.5 p-1 bg-slate-100/90 rounded-2xl">
+      <div className="mt-5 grid grid-cols-2 gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-800 rounded-2xl">
         <button
           type="button"
           onClick={() => {
@@ -181,8 +181,8 @@ export default function AuthPage({
           }}
           className={`min-h-[42px] rounded-xl text-sm font-bold transition-all cursor-pointer ${
             mode === 'login'
-              ? 'bg-white text-[#2D3748] shadow-sm'
-              : 'text-slate-500 hover:text-slate-800'
+              ? 'bg-white text-[#2D3748] shadow-sm dark:bg-slate-700 dark:text-slate-100'
+              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
           Masuk
@@ -196,8 +196,8 @@ export default function AuthPage({
           }}
           className={`min-h-[42px] rounded-xl text-sm font-bold transition-all cursor-pointer ${
             mode === 'register'
-              ? 'bg-white text-[#2D3748] shadow-sm'
-              : 'text-slate-500 hover:text-slate-800'
+              ? 'bg-white text-[#2D3748] shadow-sm dark:bg-slate-700 dark:text-slate-100'
+              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
           Daftar Baru
@@ -210,7 +210,7 @@ export default function AuthPage({
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="mt-5 w-full min-h-[48px] px-5 py-3 rounded-2xl bg-[#2D3748] hover:bg-[#1E293B] text-white font-semibold text-sm flex items-center justify-center gap-3 transition-all active:scale-[0.99] cursor-pointer disabled:opacity-60"
+            className="mt-5 w-full min-h-[48px] px-5 py-3 rounded-2xl bg-[#2D3748] hover:bg-[#1E293B] dark:bg-slate-800 dark:hover:bg-slate-700 dark:border dark:border-slate-700 text-white font-semibold text-sm flex items-center justify-center gap-3 transition-all active:scale-[0.99] cursor-pointer disabled:opacity-60"
           >
             <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -234,13 +234,13 @@ export default function AuthPage({
           </button>
 
           <div className="my-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-xs font-semibold text-slate-400">atau gunakan email</span>
-            <div className="h-px flex-1 bg-slate-200" />
+            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">atau gunakan email</span>
+            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
           </div>
         </>
       ) : (
-        <div className="mt-5 rounded-2xl bg-[#FFF8E7] border border-[#FDE68A] p-3.5 text-xs text-amber-900">
+        <div className="mt-5 rounded-2xl bg-[#FFF8E7] dark:bg-amber-950/60 border border-[#FDE68A] dark:border-amber-800/70 p-3.5 text-xs text-amber-900 dark:text-amber-200">
           Konfigurasi Firebase belum aktif, sehingga aplikasi berjalan otomatis dalam{' '}
           <strong>Mode Lokal (localStorage)</strong>.
         </div>
@@ -249,46 +249,46 @@ export default function AuthPage({
       <form onSubmit={handleEmailSubmit} className="space-y-3.5">
         {mode === 'register' && (
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">
               Nama Lengkap
             </label>
             <div className="relative">
-              <UserIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <UserIcon className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Contoh: Alya Putri"
-                className="w-full min-h-[46px] pl-10 pr-4 py-2.5 rounded-2xl bg-[#FAF9F6] border border-slate-200 text-sm text-[#2D3748] focus:outline-none focus:ring-2 focus:ring-[#A78BFA]/40 focus:border-[#8B5CF6]"
+                className="w-full min-h-[46px] pl-10 pr-4 py-2.5 rounded-2xl bg-[#FAF9F6] dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-[#2D3748] dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#A78BFA]/40 focus:border-[#8B5CF6]"
               />
             </div>
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">
             Alamat Email
           </label>
           <div className="relative">
-            <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="nama@mahasiswa.ac.id"
-              className="w-full min-h-[46px] pl-10 pr-4 py-2.5 rounded-2xl bg-[#FAF9F6] border border-slate-200 text-sm text-[#2D3748] focus:outline-none focus:ring-2 focus:ring-[#A78BFA]/40 focus:border-[#8B5CF6]"
+              className="w-full min-h-[46px] pl-10 pr-4 py-2.5 rounded-2xl bg-[#FAF9F6] dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-[#2D3748] dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#A78BFA]/40 focus:border-[#8B5CF6]"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">
             Kata Sandi
           </label>
           <div className="relative">
-            <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Lock className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="password"
               required
@@ -296,7 +296,7 @@ export default function AuthPage({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimal 6 karakter"
-              className="w-full min-h-[46px] pl-10 pr-4 py-2.5 rounded-2xl bg-[#FAF9F6] border border-slate-200 text-sm text-[#2D3748] focus:outline-none focus:ring-2 focus:ring-[#A78BFA]/40 focus:border-[#8B5CF6]"
+              className="w-full min-h-[46px] pl-10 pr-4 py-2.5 rounded-2xl bg-[#FAF9F6] dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-[#2D3748] dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#A78BFA]/40 focus:border-[#8B5CF6]"
             />
           </div>
         </div>
@@ -304,27 +304,27 @@ export default function AuthPage({
         {errorMsg && (
           <div
             role="alert"
-            className="rounded-2xl bg-[#FFF3F5] border border-[#FBCFE8] px-4 py-3 text-xs text-[#9D174D] leading-relaxed font-semibold space-y-2.5"
+            className="rounded-2xl bg-[#FFF3F5] dark:bg-pink-950/70 border border-[#FBCFE8] dark:border-pink-800/70 px-4 py-3 text-xs text-[#9D174D] dark:text-pink-200 leading-relaxed font-semibold space-y-2.5"
           >
             <p>{errorMsg}</p>
 
             {isUnauthorizedDomain && currentDomain && (
-              <div className="pt-1 space-y-2 text-[11px] text-slate-700 font-medium">
+              <div className="pt-1 space-y-2 text-[11px] text-slate-700 dark:text-slate-200 font-medium">
                 <p>
                   Buka <strong>Firebase Console → Authentication → Settings → Authorized domains</strong>, lalu tambahkan domain berikut:
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
-                  <code className="px-2.5 py-1 rounded-lg bg-white border border-[#FBCFE8] text-[#9D174D] font-bold">
+                  <code className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-[#FBCFE8] dark:border-pink-800 text-[#9D174D] dark:text-pink-300 font-bold">
                     {currentDomain}
                   </code>
                   <button
                     type="button"
                     onClick={handleCopyDomain}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold cursor-pointer"
                   >
                     {copiedDomain ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         <span>Tersalin</span>
                       </>
                     ) : (
@@ -338,7 +338,7 @@ export default function AuthPage({
                     href={consoleAuthUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#2D3748] text-white font-bold hover:bg-[#1E293B]"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#2D3748] dark:bg-violet-600 text-white font-bold hover:bg-[#1E293B] dark:hover:bg-violet-500"
                   >
                     <span>Buka Firebase Console</span>
                     <ExternalLink className="w-3 h-3" />
@@ -352,7 +352,7 @@ export default function AuthPage({
         <button
           type="submit"
           disabled={loading}
-          className="w-full min-h-[48px] px-5 py-3 rounded-2xl bg-[#E8DFF5] hover:bg-[#DDD0F2] text-[#4C1D95] font-bold text-sm transition-all active:scale-[0.99] cursor-pointer disabled:opacity-60"
+          className="w-full min-h-[48px] px-5 py-3 rounded-2xl bg-[#E8DFF5] hover:bg-[#DDD0F2] dark:bg-violet-600 dark:hover:bg-violet-500 text-[#4C1D95] dark:text-white font-bold text-sm transition-all active:scale-[0.99] cursor-pointer disabled:opacity-60"
         >
           {loading
             ? 'Memproses...'
@@ -363,11 +363,11 @@ export default function AuthPage({
       </form>
 
       {!isModal && (
-        <div className="mt-5 pt-4 border-t border-slate-100 text-center">
+        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
           <button
             type="button"
             onClick={() => onEnterLocalMode(name.trim() || undefined)}
-            className="inline-flex items-center justify-center gap-2 min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-[#2D3748] hover:bg-slate-100 transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 min-h-[40px] px-4 py-2 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-[#2D3748] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <HardDrive className="w-3.5 h-3.5" />
             <span>Masuk Otomatis Tanpa Akun (Mode Lokal)</span>
@@ -380,7 +380,7 @@ export default function AuthPage({
   if (isModal) {
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-[#2D3748]/40 backdrop-blur-sm p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-[#2D3748]/40 dark:bg-slate-950/75 backdrop-blur-sm p-4"
         role="dialog"
         aria-modal="true"
       >
@@ -390,33 +390,33 @@ export default function AuthPage({
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] flex flex-col justify-center px-4 py-10 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#FAF9F6] dark:bg-slate-950 flex flex-col justify-center px-4 py-10 sm:px-6 lg:px-8 transition-colors">
       <div className="mx-auto w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-        <div className="lg:col-span-6 rounded-3xl bg-white/80 backdrop-blur-md border border-slate-200/80 p-8 sm:p-10 shadow-[0_8px_32px_rgba(45,55,72,0.05)] flex flex-col justify-between">
+        <div className="lg:col-span-6 rounded-3xl bg-white/80 dark:bg-slate-900/85 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-8 sm:p-10 shadow-[0_8px_32px_rgba(45,55,72,0.05)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] flex flex-col justify-between">
           <div>
-            <div className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#E8DFF5] text-[#5B21B6] text-xs font-bold">
+            <div className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#E8DFF5] dark:bg-violet-950/80 text-[#5B21B6] dark:text-violet-300 text-xs font-bold">
               <CalendarHeart className="w-4 h-4" />
               <span>Academic &amp; Daily Student Planner</span>
             </div>
 
-            <h1 className="mt-6 text-3xl sm:text-4xl font-extrabold tracking-tight text-[#2D3748] font-display text-balance">
+            <h1 className="mt-6 text-3xl sm:text-4xl font-extrabold tracking-tight text-[#2D3748] dark:text-slate-100 font-display text-balance">
               My Schedule
             </h1>
-            <p className="mt-3 text-base text-slate-600 leading-relaxed max-w-md">
+            <p className="mt-3 text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-md">
               Atur jadwal kuliah, rutinitas harian, acara kampus, serta rapat &amp; deadline tugas dalam satu tempat yang rapi dan sinkron di semua perangkat.
             </p>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1.5 font-semibold">
               {isFirebaseConfigured ? (
                 <>
-                  <Cloud className="w-4 h-4 text-emerald-600" />
+                  <Cloud className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>Cloud Firestore Siap</span>
                 </>
               ) : (
                 <>
-                  <HardDrive className="w-4 h-4 text-amber-600" />
+                  <HardDrive className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                   <span>Mode Penyimpanan Lokal</span>
                 </>
               )}

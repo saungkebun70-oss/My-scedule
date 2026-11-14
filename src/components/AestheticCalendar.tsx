@@ -86,11 +86,11 @@ export default function AestheticCalendar({
   return (
     <section
       aria-label="Kalender Jadwal"
-      className="relative overflow-hidden rounded-3xl bg-white/90 backdrop-blur-md border border-slate-200/80 p-5 sm:p-6 shadow-[0_4px_24px_rgba(45,55,72,0.04)]"
+      className="relative overflow-hidden rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 shadow-[0_4px_24px_rgba(45,55,72,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)]"
     >
       {/* Cute subtle stationery corner sticker */}
       <div
-        className="pointer-events-none absolute -top-2 -right-2 w-16 h-16 opacity-60"
+        className="pointer-events-none absolute -top-2 -right-2 w-16 h-16 opacity-60 dark:opacity-35"
         aria-hidden="true"
       >
         <svg viewBox="0 0 64 64" className="w-full h-full">
@@ -105,14 +105,14 @@ export default function AestheticCalendar({
       {/* Calendar Header */}
       <div className="relative flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-2xl bg-[#E8DFF5] text-[#5B21B6] flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-2xl bg-[#E8DFF5] dark:bg-violet-950/80 text-[#5B21B6] dark:text-violet-300 flex items-center justify-center shrink-0">
             <CalendarDays className="w-4.5 h-4.5" />
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-[#2D3748] font-display capitalize">
+            <h2 className="text-base sm:text-lg font-bold text-[#2D3748] dark:text-slate-100 font-display capitalize">
               {formatMonthYear(viewMode === 'month' ? cursorDate : parseDateKey(selectedDate))}
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Pilih tanggal untuk memfilter jadwal
             </p>
           </div>
@@ -120,14 +120,14 @@ export default function AestheticCalendar({
 
         <div className="flex items-center gap-2">
           {/* Monthly / Weekly Toggle */}
-          <div className="inline-flex items-center p-1 rounded-xl bg-slate-100">
+          <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
             <button
               type="button"
               onClick={() => setViewMode('month')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
                 viewMode === 'month'
-                  ? 'bg-white text-[#2D3748] shadow-sm'
-                  : 'text-slate-500 hover:text-[#2D3748]'
+                  ? 'bg-white text-[#2D3748] shadow-sm dark:bg-slate-700 dark:text-slate-100'
+                  : 'text-slate-500 hover:text-[#2D3748] dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               Bulanan
@@ -137,8 +137,8 @@ export default function AestheticCalendar({
               onClick={() => setViewMode('week')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
                 viewMode === 'week'
-                  ? 'bg-white text-[#2D3748] shadow-sm'
-                  : 'text-slate-500 hover:text-[#2D3748]'
+                  ? 'bg-white text-[#2D3748] shadow-sm dark:bg-slate-700 dark:text-slate-100'
+                  : 'text-slate-500 hover:text-[#2D3748] dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               Mingguan
@@ -149,7 +149,7 @@ export default function AestheticCalendar({
             <button
               type="button"
               onClick={handlePrev}
-              className="min-w-[38px] min-h-[38px] rounded-xl bg-[#FAF9F6] hover:bg-[#E8DFF5]/60 border border-slate-200/70 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+              className="min-w-[38px] min-h-[38px] rounded-xl bg-[#FAF9F6] hover:bg-[#E8DFF5]/60 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/70 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
               aria-label={viewMode === 'month' ? 'Bulan sebelumnya' : 'Minggu sebelumnya'}
             >
               <ChevronLeft className="w-4 h-4" />
@@ -157,7 +157,7 @@ export default function AestheticCalendar({
             <button
               type="button"
               onClick={handleNext}
-              className="min-w-[38px] min-h-[38px] rounded-xl bg-[#FAF9F6] hover:bg-[#E8DFF5]/60 border border-slate-200/70 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+              className="min-w-[38px] min-h-[38px] rounded-xl bg-[#FAF9F6] hover:bg-[#E8DFF5]/60 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/70 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
               aria-label={viewMode === 'month' ? 'Bulan berikutnya' : 'Minggu berikutnya'}
             >
               <ChevronRight className="w-4 h-4" />
@@ -172,7 +172,7 @@ export default function AestheticCalendar({
           <button
             type="button"
             onClick={handleJumpToday}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F5F0FC] hover:bg-[#E8DFF5] text-[#5B21B6] text-xs font-bold transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F5F0FC] hover:bg-[#E8DFF5] dark:bg-violet-950/70 dark:hover:bg-violet-900/70 text-[#5B21B6] dark:text-violet-300 text-xs font-bold transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Kembali ke Hari Ini</span>
@@ -185,7 +185,7 @@ export default function AestheticCalendar({
         {WEEKDAY_LABELS.map((day) => (
           <div
             key={day}
-            className="py-1 text-[11px] font-bold text-slate-400 tracking-wide"
+            className="py-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wide"
           >
             {day}
           </div>
@@ -212,12 +212,12 @@ export default function AestheticCalendar({
               }}
               className={`group relative min-h-[48px] sm:min-h-[54px] rounded-2xl flex flex-col items-center justify-center gap-1 py-1.5 transition-all cursor-pointer tabular-nums ${
                 isSelected
-                  ? 'bg-[#2D3748] text-white shadow-sm'
+                  ? 'bg-[#2D3748] text-white shadow-sm dark:bg-violet-600 dark:text-white'
                   : isToday
-                  ? 'bg-[#E8DFF5] text-[#4C1D95] ring-1 ring-[#C4B5FD]'
+                  ? 'bg-[#E8DFF5] text-[#4C1D95] ring-1 ring-[#C4B5FD] dark:bg-violet-950/80 dark:text-violet-200 dark:ring-violet-700'
                   : isCurrentMonth
-                  ? 'bg-[#FAF9F6]/80 hover:bg-[#F5F0FC] text-[#2D3748]'
-                  : 'bg-transparent text-slate-300 hover:bg-slate-50 hover:text-slate-500'
+                  ? 'bg-[#FAF9F6]/80 hover:bg-[#F5F0FC] text-[#2D3748] dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:text-slate-200'
+                  : 'bg-transparent text-slate-300 hover:bg-slate-50 hover:text-slate-500 dark:text-slate-600 dark:hover:bg-slate-800/40 dark:hover:text-slate-400'
               }`}
             >
               <span
@@ -255,7 +255,7 @@ export default function AestheticCalendar({
       </div>
 
       {/* Category Color Legend */}
-      <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-semibold text-slate-500">
+      <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
         {(Object.keys(CATEGORY_META) as ScheduleCategory[]).map((cat) => (
           <span key={cat} className="inline-flex items-center gap-1.5">
             <span
