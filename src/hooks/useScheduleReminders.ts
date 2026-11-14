@@ -48,25 +48,55 @@ function getPermissionState(): BrowserNotificationPermission {
   return Notification.permission;
 }
 
-function loadConsent(): NotificationConsent {
-  const browserPerm = getPermissionState();
-  if (browserPerm === 'denied') {
-    return 'denied';
-  }
+function getScopedKey(baseKey: string, userId?: string | null): string | null {
+  if (!userId) return null;
+  return `${baseKey}_${userId}`;
+}
+
+function readScopedValue(baseKey: string, userId?: string | null): string | null {
+  const scoped = getScopedKey(baseKey, userId);
+  if (!scoped) return null;
   try {
-    const raw = localStorage.getItem(CONSENT_STORAGE_KEY);
-    if (raw === 'granted' || raw === 'denied' || raw === 'pending') {
-      return raw;
+    const val = localStorage.getItem(scoped);
+    if (val !== null) return val;
+    const legacy = localStorage.getItem(baseKey);
+    if (legacy !== null) {
+      localStorage.setItem(scoped, legacy);
+      localStorage.removeItem(baseKey);
+      return legacy;
     }
   } catch {
     // ignore
   }
+  return null;
+}
+
+function writeScopedValue(baseKey: string, userId: string | null | undefined, value: string) {
+  const scoped = getScopedKey(baseKey, userId);
+  if (!scoped) return;
+  try {
+    localStorage.setItem(scoped, value);
+  } catch {
+    // ignore
+  }
+}
+
+function loadConsent(userId?: string | null): NotificationConsent {
+  if (!userId) return 'denied';
+  const browserPerm = getPermissionState();
+  if (browserPerm === 'denied') {
+    return 'denied';
+  }
+  const raw = readScopedValue(CONSENT_STORAGE_KEY, userId);
+  if (raw === 'granted' || raw === 'denied' || raw === 'pending') {
+    return raw;
+  }
   return 'pending';
 }
 
-function loadSettings(): ReminderSettings {
+function loadSettings(userId?: string | null): ReminderSettings {
   try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    const raw = readScopedValue(SETTINGS_STORAGE_KEY, userId);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<ReminderSettings>;
       return {
@@ -81,9 +111,9 @@ function loadSettings(): ReminderSettings {
   return { enabled: false, leadMinutes: 15 };
 }
 
-function loadWhatsAppSettings(): WhatsAppSettings {
+function loadWhatsAppSettings(userId?: string | null): WhatsAppSettings {
   try {
-    const raw = localStorage.getItem(WA_SETTINGS_STORAGE_KEY);
+    const raw = readScopedValue(WA_SETTINGS_STORAGE_KEY, userId);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<WhatsAppSettings>;
       const apiKey = typeof parsed.apiKey === 'string' ? parsed.apiKey : '';
@@ -132,9 +162,9 @@ function loadWhatsAppSettings(): WhatsAppSettings {
   };
 }
 
-function loadNotifiedSet(): Set<string> {
+function loadNotifiedSet(userId?: string | null): Set<string> {
   try {
-    const raw = localStorage.getItem(NOTIFIED_STORAGE_KEY);
+    const raw = readScopedValue(NOTIFIED_STORAGE_KEY, userId);
     if (raw) {
       const arr = JSON.parse(raw) as string[];
       return new Set(arr.slice(-300));
@@ -145,13 +175,9 @@ function loadNotifiedSet(): Set<string> {
   return new Set();
 }
 
-function saveNotifiedSet(set: Set<string>) {
-  try {
-    const arr = Array.from(set).slice(-300);
-    localStorage.setItem(NOTIFIED_STORAGE_KEY, JSON.stringify(arr));
-  } catch {
-    // ignore
-  }
+function saveNotifiedSet(set: Set<string>, userId?: string | null) {
+  const arr = Array.from(set).slice(-300);
+  writeScopedValue(NOTIFIED_STORAGE_KEY, userId, JSON.stringify(arr));
 }
 
 let swRegisterPromise: Promise<ServiceWorkerRegistration | null> | null = null;
@@ -282,12 +308,13 @@ function buildScheduleNotificationCopy(
 export function useScheduleReminders(
   schedules: ScheduleItem[],
   studentName?: string,
-  onInAppReminder?: (alert: InAppReminderAlert) => void
+  onInAppReminder?: (alert: InAppReminderAlert) => void,
+  userId?: string | null
 ) {
-  const [consent, setConsent] = useState<NotificationConsent>(() => loadConsent());
-  const [settings, setSettings] = useState<ReminderSettings>(() => loadSettings());
+  const [consent, setConsent] = useState<NotificationConsent>(() => loadConsent(userId));
+  const [settings, setSettings] = useState<ReminderSettings>(() => loadSettings(userId));
   const [waSettings, setWaSettings] = useState<WhatsAppSettings>(() =>
-    loadWhatsAppSettings()
+    loadWhatsAppSettings(userId)
   );
   const [permission, setPermission] = useState<BrowserNotificationPermission>(() =>
     getPermissionState()
@@ -298,31 +325,15 @@ export function useScheduleReminders(
     providerLabel: null,
   });
 
-  const notificationsAllowed = consent === 'granted' && permission !== 'denied';
-
+  // Reload isolated per-account settings whenever active userId changes
   useEffect(() => {
-    try {
-      localStorage.setItem(CONSENT_STORAGE_KEY, consent);
-    } catch {
-      // ignore
-    }
-  }, [consent]);
+    setConsent(loadConsent(userId));
+    setSettings(loadSettings(userId));
+    setWaSettings(loadWhatsAppSettings(userId));
+  }, [userId]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-    } catch {
-      // ignore
-    }
-  }, [settings]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(WA_SETTINGS_STORAGE_KEY, JSON.stringify(waSettings));
-    } catch {
-      // ignore
-    }
-  }, [waSettings]);
+  const notificationsAllowed =
+    Boolean(userId) && consent === 'granted' && permission !== 'denied';
 
   useEffect(() => {
     void ensureServiceWorker();
@@ -330,10 +341,19 @@ export function useScheduleReminders(
     const syncPermission = () => {
       const current = getPermissionState();
       setPermission(current);
-      if (current === 'denied') {
+      if (current === 'denied' && userId) {
         setConsent('denied');
-        setSettings((prev) => ({ ...prev, enabled: false }));
-        setWaSettings((prev) => ({ ...prev, autoEnabled: false }));
+        writeScopedValue(CONSENT_STORAGE_KEY, userId, 'denied');
+        setSettings((prev) => {
+          const next = { ...prev, enabled: false };
+          writeScopedValue(SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+          return next;
+        });
+        setWaSettings((prev) => {
+          const next = { ...prev, autoEnabled: false };
+          writeScopedValue(WA_SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+          return next;
+        });
       }
     };
 
@@ -343,20 +363,22 @@ export function useScheduleReminders(
       window.removeEventListener('focus', syncPermission);
       document.removeEventListener('visibilitychange', syncPermission);
     };
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     let active = true;
     fetchServerWaGatewayStatus().then((status) => {
       if (!active) return;
       setServerWaStatus(status);
-      if (status.configured) {
+      if (status.configured && userId) {
         setWaSettings((prev) => {
           if (
             (prev.provider === 'callmebot' || prev.provider === 'fonnte') &&
             !prev.apiKey.trim()
           ) {
-            return { ...prev, provider: 'server' };
+            const next: WhatsAppSettings = { ...prev, provider: 'server' };
+            writeScopedValue(WA_SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+            return next;
           }
           return prev;
         });
@@ -365,11 +387,18 @@ export function useScheduleReminders(
     return () => {
       active = false;
     };
-  }, []);
+  }, [userId]);
 
-  const updateWhatsAppSettings = useCallback((updates: Partial<WhatsAppSettings>) => {
-    setWaSettings((prev) => ({ ...prev, ...updates }));
-  }, []);
+  const updateWhatsAppSettings = useCallback(
+    (updates: Partial<WhatsAppSettings>) => {
+      setWaSettings((prev) => {
+        const next = { ...prev, ...updates };
+        writeScopedValue(WA_SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+        return next;
+      });
+    },
+    [userId]
+  );
 
   const requestBrowserPermission = useCallback(async (): Promise<BrowserNotificationPermission> => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -392,40 +421,78 @@ export function useScheduleReminders(
 
     if (perm === 'denied') {
       setConsent('denied');
-      setSettings((prev) => ({ ...prev, enabled: false }));
-      setWaSettings((prev) => ({ ...prev, autoEnabled: false }));
+      writeScopedValue(CONSENT_STORAGE_KEY, userId, 'denied');
+      setSettings((prev) => {
+        const next = { ...prev, enabled: false };
+        writeScopedValue(SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+        return next;
+      });
+      setWaSettings((prev) => {
+        const next = { ...prev, autoEnabled: false };
+        writeScopedValue(WA_SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+        return next;
+      });
       return 'denied';
     }
 
     // Automatically approve & activate notification + WA automation settings
     setConsent('granted');
-    setSettings((prev) => ({ ...prev, enabled: true }));
-    setWaSettings((prev) => ({
-      ...prev,
-      autoEnabled: prev.provider !== 'link',
-      dailyEnabled: true,
-      exactStartAlert: true,
-    }));
+    writeScopedValue(CONSENT_STORAGE_KEY, userId, 'granted');
+    setSettings((prev) => {
+      const next = { ...prev, enabled: true };
+      writeScopedValue(SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+      return next;
+    });
+    setWaSettings((prev) => {
+      const next = {
+        ...prev,
+        autoEnabled: prev.provider !== 'link',
+        dailyEnabled: true,
+        exactStartAlert: true,
+      };
+      writeScopedValue(WA_SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+      return next;
+    });
     return 'granted';
-  }, [requestBrowserPermission]);
+  }, [requestBrowserPermission, userId]);
 
   const denyNotificationConsent = useCallback(() => {
     setConsent('denied');
-    setSettings((prev) => ({ ...prev, enabled: false }));
-    setWaSettings((prev) => ({ ...prev, autoEnabled: false }));
-  }, []);
+    writeScopedValue(CONSENT_STORAGE_KEY, userId, 'denied');
+    setSettings((prev) => {
+      const next = { ...prev, enabled: false };
+      writeScopedValue(SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+      return next;
+    });
+    setWaSettings((prev) => {
+      const next = { ...prev, autoEnabled: false };
+      writeScopedValue(WA_SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+      return next;
+    });
+  }, [userId]);
 
   const toggleReminders = useCallback(async () => {
     if (!notificationsAllowed || !settings.enabled) {
       await grantNotificationConsent();
     } else {
-      setSettings((prev) => ({ ...prev, enabled: false }));
+      setSettings((prev) => {
+        const next = { ...prev, enabled: false };
+        writeScopedValue(SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+        return next;
+      });
     }
-  }, [notificationsAllowed, settings.enabled, grantNotificationConsent]);
+  }, [notificationsAllowed, settings.enabled, grantNotificationConsent, userId]);
 
-  const setLeadMinutes = useCallback((leadMinutes: number) => {
-    setSettings((prev) => ({ ...prev, leadMinutes: clampLeadMinutes(leadMinutes) }));
-  }, []);
+  const setLeadMinutes = useCallback(
+    (leadMinutes: number) => {
+      setSettings((prev) => {
+        const next = { ...prev, leadMinutes: clampLeadMinutes(leadMinutes) };
+        writeScopedValue(SETTINGS_STORAGE_KEY, userId, JSON.stringify(next));
+        return next;
+      });
+    },
+    [userId]
+  );
 
   const sendTestNotification = useCallback(async () => {
     if (!notificationsAllowed) {
@@ -587,8 +654,8 @@ export function useScheduleReminders(
       const now = new Date();
       const nowMs = now.getTime();
       const todayKey = formatDateKey(now);
-      const notified = loadNotifiedSet();
-      const customWaMap = loadCustomWaReminderMap();
+      const notified = loadNotifiedSet(userId);
+      const customWaMap = loadCustomWaReminderMap(userId);
       const pendingDispatches: Array<{
         key: string;
         title: string;
@@ -681,7 +748,7 @@ export function useScheduleReminders(
       }
 
       if (pendingDispatches.length > 0) {
-        saveNotifiedSet(notified);
+        saveNotifiedSet(notified, userId);
         for (const dispatch of pendingDispatches) {
           await dispatchAlert(
             dispatch.key,
@@ -709,6 +776,7 @@ export function useScheduleReminders(
       window.removeEventListener('focus', handleWake);
     };
   }, [
+    userId,
     notificationsAllowed,
     schedules,
     settings.enabled,

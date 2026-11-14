@@ -127,7 +127,7 @@ export default function App() {
     sendTestNotification,
     sendTestWhatsAppNow,
     sendDailySummaryToWhatsAppWebhook,
-  } = useScheduleReminders(schedules, profile?.nama, handleInAppReminder);
+  } = useScheduleReminders(schedules, profile?.nama, handleInAppReminder, user?.uid);
 
   const handleAllowNotifications = useCallback(async () => {
     setPermissionBusy(true);
@@ -243,6 +243,17 @@ export default function App() {
     let unsubProfile: (() => void) | undefined;
     let unsubSchedules: (() => void) | undefined;
 
+    // Immediately clear previous account's in-memory data before loading new user's workspace
+    setProfile(null);
+    setSchedules([]);
+    setReminderAlert(null);
+    setDatePopupKey(null);
+    setEditingItem(null);
+    setModalOpen(false);
+    setDeleteTarget(null);
+    setClearConfirmOpen(false);
+    setQuickWaPhone('');
+
     const initUserWorkspace = async () => {
       setDataLoading(true);
       try {
@@ -355,13 +366,24 @@ export default function App() {
 
   const handleLogout = async () => {
     localStorage.removeItem(LOCAL_SESSION_KEY);
+    setProfile(null);
+    setSchedules([]);
+    setReminderAlert(null);
+    setDatePopupKey(null);
+    setEditingItem(null);
+    setModalOpen(false);
+    setDeleteTarget(null);
+    setClearConfirmOpen(false);
+    setQuickWaPhone('');
+    setSearchQuery('');
+    setActiveCategory('all');
+    setShowAllDates(false);
+    setActivePage('beranda');
     if (!isLocalMode && auth) {
       await signOut(auth);
       showToast('Berhasil keluar dari akun Cloud.');
     } else {
       setUser(null);
-      setProfile(null);
-      setSchedules([]);
     }
   };
 
@@ -393,11 +415,11 @@ export default function App() {
     if (!user) return;
     if (editingItem) {
       await updateScheduleItem(user.uid, editingItem.id, data, isLocalMode);
-      setCustomWaReminderTime(editingItem.id, customWaTime);
+      setCustomWaReminderTime(editingItem.id, customWaTime, user.uid);
       showToast('Perubahan jadwal tersimpan.');
     } else {
       const createdId = await createScheduleItem(user.uid, data, isLocalMode);
-      setCustomWaReminderTime(createdId, customWaTime);
+      setCustomWaReminderTime(createdId, customWaTime, user.uid);
       showToast('Jadwal baru berhasil ditambahkan.');
     }
   };
@@ -412,7 +434,7 @@ export default function App() {
     setActionBusy(true);
     try {
       await deleteScheduleItem(user.uid, deleteTarget.id, isLocalMode);
-      removeCustomWaReminderTime(deleteTarget.id);
+      removeCustomWaReminderTime(deleteTarget.id, user.uid);
       setDeleteTarget(null);
       showToast('Jadwal berhasil dihapus.');
     } finally {
@@ -949,6 +971,7 @@ export default function App() {
       {/* Add / Edit Schedule Modal */}
       <ScheduleModal
         open={modalOpen}
+        userId={user.uid}
         editingItem={editingItem}
         defaultDate={selectedDate}
         onClose={() => {

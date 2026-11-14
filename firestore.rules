@@ -78,8 +78,13 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    // Explicitly block listing or reading the /users collection or other user roots
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+
     match /users/{userId}/profile/{profileId} {
-      allow get: if isOwner(userId) && isValidId(profileId);
+      allow get: if isOwner(userId) && isValidId(profileId) && (resource == null || resource.data.uid == request.auth.uid);
       allow list: if isOwner(userId) && resource.data.uid == request.auth.uid;
       allow create: if isOwner(userId)
         && profileId == 'main'
@@ -99,7 +104,7 @@ service cloud.firestore {
     }
 
     match /users/{userId}/schedules/{scheduleId} {
-      allow get: if isOwner(userId) && isValidId(scheduleId);
+      allow get: if isOwner(userId) && isValidId(scheduleId) && (resource == null || resource.data.uid == request.auth.uid);
       allow list: if isOwner(userId) && resource.data.uid == request.auth.uid;
       allow create: if isOwner(userId)
         && isValidId(scheduleId)

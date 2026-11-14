@@ -28,19 +28,35 @@ export const CALLMEBOT_GUIDE_URL =
 const CUSTOM_WA_TIME_STORAGE_KEY = 'my_schedule_wa_custom_times';
 const TIME_HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+function getCustomWaStorageKey(userId?: string | null): string | null {
+  if (!userId) return null;
+  return `${CUSTOM_WA_TIME_STORAGE_KEY}_${userId}`;
+}
+
 export function isValidTimeHHMM(value: string): boolean {
   return TIME_HHMM_REGEX.test(value.trim());
 }
 
-export function loadCustomWaReminderMap(): Record<string, string> {
+export function loadCustomWaReminderMap(userId?: string | null): Record<string, string> {
+  const key = getCustomWaStorageKey(userId);
+  if (!key) return {};
+
   try {
-    const raw = localStorage.getItem(CUSTOM_WA_TIME_STORAGE_KEY);
+    let raw = localStorage.getItem(key);
+    if (!raw) {
+      const legacy = localStorage.getItem(CUSTOM_WA_TIME_STORAGE_KEY);
+      if (legacy) {
+        localStorage.setItem(key, legacy);
+        localStorage.removeItem(CUSTOM_WA_TIME_STORAGE_KEY);
+        raw = legacy;
+      }
+    }
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const clean: Record<string, string> = {};
-    for (const [key, val] of Object.entries(parsed)) {
+    for (const [entryKey, val] of Object.entries(parsed)) {
       if (typeof val === 'string' && isValidTimeHHMM(val)) {
-        clean[key] = val.trim();
+        clean[entryKey] = val.trim();
       }
     }
     return clean;
@@ -49,35 +65,47 @@ export function loadCustomWaReminderMap(): Record<string, string> {
   }
 }
 
-export function getCustomWaReminderTime(scheduleId: string): string {
-  if (!scheduleId) return '';
-  const map = loadCustomWaReminderMap();
+export function getCustomWaReminderTime(
+  scheduleId: string,
+  userId?: string | null
+): string {
+  if (!scheduleId || !userId) return '';
+  const map = loadCustomWaReminderMap(userId);
   return map[scheduleId] || '';
 }
 
-export function setCustomWaReminderTime(scheduleId: string, timeHHMM: string): void {
-  if (!scheduleId) return;
+export function setCustomWaReminderTime(
+  scheduleId: string,
+  timeHHMM: string,
+  userId?: string | null
+): void {
+  const key = getCustomWaStorageKey(userId);
+  if (!scheduleId || !key) return;
   try {
-    const map = loadCustomWaReminderMap();
+    const map = loadCustomWaReminderMap(userId);
     const trimmed = timeHHMM.trim();
     if (isValidTimeHHMM(trimmed)) {
       map[scheduleId] = trimmed;
     } else {
       delete map[scheduleId];
     }
-    localStorage.setItem(CUSTOM_WA_TIME_STORAGE_KEY, JSON.stringify(map));
+    localStorage.setItem(key, JSON.stringify(map));
   } catch {
     // ignore storage quota errors
   }
 }
 
-export function removeCustomWaReminderTime(scheduleId: string): void {
-  if (!scheduleId) return;
+export function removeCustomWaReminderTime(
+  scheduleId: string,
+  userId?: string | null
+): void {
+  const key = getCustomWaStorageKey(userId);
+  if (!scheduleId || !key) return;
   try {
-    const map = loadCustomWaReminderMap();
+    const map = loadCustomWaReminderMap(userId);
     if (scheduleId in map) {
       delete map[scheduleId];
-      localStorage.setItem(CUSTOM_WA_TIME_STORAGE_KEY, JSON.stringify(map));
+      localStorage.setItem(key, JSON.stringify(map));
     }
   } catch {
     // ignore

@@ -12,6 +12,7 @@ import { getCustomWaReminderTime } from '../utils/whatsappUtils';
 
 interface ScheduleModalProps {
   open: boolean;
+  userId: string;
   editingItem: ScheduleItem | null;
   defaultDate: string;
   onClose: () => void;
@@ -22,6 +23,7 @@ const CATEGORIES: ScheduleCategory[] = ['matkul', 'harian', 'acara', 'rapat_dead
 
 export default function ScheduleModal({
   open,
+  userId,
   editingItem,
   defaultDate,
   onClose,
@@ -59,7 +61,7 @@ export default function ScheduleModal({
       setPriority(editingItem.priority || 'sedang');
       setSubType(editingItem.subType || 'deadline');
       setCompleted(editingItem.completed);
-      setCustomWaTime(getCustomWaReminderTime(editingItem.id));
+      setCustomWaTime(getCustomWaReminderTime(editingItem.id, userId));
     } else {
       setCategory('matkul');
       setTitle('');
@@ -76,7 +78,7 @@ export default function ScheduleModal({
       setCompleted(false);
       setCustomWaTime('');
     }
-  }, [open, editingItem, defaultDate]);
+  }, [open, editingItem, defaultDate, userId]);
 
   if (!open) return null;
 
