@@ -1,4 +1,5 @@
 import { CalendarDays, Cloud, HardDrive, Home, ListTodo, Moon, Plus, QrCode, Sun, User } from 'lucide-react';
+import UserAvatar from './UserAvatar';
 
 export type MobileTab = 'beranda' | 'kalender' | 'jadwal' | 'profil';
 
@@ -10,19 +11,25 @@ interface MobileNavProps {
 }
 
 export function MobileTopBar({
+  profilePhoto,
+  studentName,
   isLocalMode,
   isFirebaseAvailable,
   isDark,
   onToggleTheme,
   onOpenAuth,
   onOpenShareQr,
+  onOpenPhotoModal,
 }: {
+  profilePhoto?: string | null;
+  studentName?: string | null;
   isLocalMode: boolean;
   isFirebaseAvailable: boolean;
   isDark: boolean;
   onToggleTheme: () => void;
   onOpenAuth: () => void;
   onOpenShareQr: () => void;
+  onOpenPhotoModal: () => void;
 }) {
   return (
     <header className="lg:hidden sticky top-0 z-30 h-13 px-4 bg-[#FAF9F6]/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800/80 flex items-center justify-between gap-2 transition-colors">
@@ -61,7 +68,7 @@ export function MobileTopBar({
             }`}
           >
             {isLocalMode ? <HardDrive className="w-3.5 h-3.5" /> : <Cloud className="w-3.5 h-3.5" />}
-            <span>{isLocalMode ? 'Local Mode' : 'Cloud Synced'}</span>
+            <span>{isLocalMode ? 'Local' : 'Cloud'}</span>
           </span>
         )}
 
@@ -70,7 +77,7 @@ export function MobileTopBar({
           onClick={onOpenShareQr}
           aria-label="Bagikan QR Link Vercel"
           title="QR Link App Vercel"
-          className="min-w-[38px] min-h-[38px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 text-[#5B21B6] dark:text-violet-300 hover:bg-[#F5F0FC] dark:hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+          className="min-w-[36px] min-h-[36px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 text-[#5B21B6] dark:text-violet-300 hover:bg-[#F5F0FC] dark:hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
         >
           <QrCode className="w-4 h-4" />
         </button>
@@ -80,9 +87,25 @@ export function MobileTopBar({
           onClick={onToggleTheme}
           aria-label={isDark ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}
           title={isDark ? 'Mode Terang' : 'Mode Gelap'}
-          className="min-w-[38px] min-h-[38px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-amber-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+          className="min-w-[36px] min-h-[36px] rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-amber-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
         >
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenPhotoModal}
+          aria-label="Atur foto profil"
+          title="Foto Profil"
+          className="rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-xs cursor-pointer shrink-0"
+        >
+          <UserAvatar
+            photoUrl={profilePhoto}
+            name={studentName}
+            sizeClass="w-9 h-9"
+            textClass="text-xs"
+            roundedClass="rounded-[10px]"
+          />
         </button>
       </div>
     </header>

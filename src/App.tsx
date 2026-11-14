@@ -22,6 +22,7 @@ import DashboardOverview from './components/DashboardOverview';
 import DatePreviewModal from './components/DatePreviewModal';
 import MobileNav, { MobileTopBar, type MobileTab } from './components/MobileNav';
 import NotificationPermissionModal from './components/NotificationPermissionModal';
+import ProfilePhotoModal from './components/ProfilePhotoModal';
 import ScheduleList from './components/ScheduleList';
 import ScheduleModal from './components/ScheduleModal';
 import ShareQrModal from './components/ShareQrModal';
@@ -94,6 +95,7 @@ export default function App() {
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ScheduleItem | null>(null);
   const [shareQrOpen, setShareQrOpen] = useState(false);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
 
   const [bannerMessage, setBannerMessage] = useState<{
@@ -262,6 +264,7 @@ export default function App() {
     setModalOpen(false);
     setDeleteTarget(null);
     setClearConfirmOpen(false);
+    setPhotoModalOpen(false);
     setQuickWaPhone('');
 
     const initUserWorkspace = async () => {
@@ -385,6 +388,7 @@ export default function App() {
     setDeleteTarget(null);
     setClearConfirmOpen(false);
     setShareQrOpen(false);
+    setPhotoModalOpen(false);
     setQuickWaPhone('');
     setSearchQuery('');
     setActiveCategory('all');
@@ -488,12 +492,15 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FAF9F6] dark:bg-slate-950 text-[#2D3748] dark:text-slate-100 pb-24 lg:pb-10 transition-colors">
       <MobileTopBar
+        profilePhoto={profile?.photoBase64}
+        studentName={profile?.nama || user.displayName}
         isLocalMode={isLocalMode}
         isFirebaseAvailable={isFirebaseConfigured}
         isDark={isDark}
         onToggleTheme={toggleTheme}
         onOpenAuth={() => setAuthModalOpen(true)}
         onOpenShareQr={() => setShareQrOpen(true)}
+        onOpenPhotoModal={() => setPhotoModalOpen(true)}
       />
 
       {/* Toast Notification Banner */}
@@ -580,6 +587,7 @@ export default function App() {
               onRequestClearAll={() => setClearConfirmOpen(true)}
               onAddSchedule={openAddModal}
               onOpenShareQr={() => setShareQrOpen(true)}
+              onOpenPhotoModal={() => setPhotoModalOpen(true)}
               onLogout={handleLogout}
               reminderSettings={reminderSettings}
               waSettings={waSettings}
@@ -759,6 +767,7 @@ export default function App() {
                         setShowAllDates(false);
                         setActivePage('kalender');
                       }}
+                      onOpenPhotoModal={() => setPhotoModalOpen(true)}
                     />
 
                     <ScheduleList
@@ -852,6 +861,7 @@ export default function App() {
                         onRequestClearAll={() => setClearConfirmOpen(true)}
                         onAddSchedule={openAddModal}
                         onOpenShareQr={() => setShareQrOpen(true)}
+                        onOpenPhotoModal={() => setPhotoModalOpen(true)}
                         onLogout={handleLogout}
                         reminderSettings={reminderSettings}
                         waSettings={waSettings}
@@ -1036,6 +1046,17 @@ export default function App() {
 
       {/* QR Code Share Modal (Vercel App URL) */}
       <ShareQrModal open={shareQrOpen} onClose={() => setShareQrOpen(false)} />
+
+      {/* Profile Photo Picker & Upload Modal */}
+      <ProfilePhotoModal
+        open={photoModalOpen}
+        currentPhoto={profile?.photoBase64 || ''}
+        studentName={profile?.nama || user.displayName || 'Mahasiswa'}
+        onSavePhoto={async (photoBase64) => {
+          await handleUpdateProfile({ photoBase64 });
+        }}
+        onClose={() => setPhotoModalOpen(false)}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AlarmClock, CheckCircle2, Clock, Sparkles } from 'lucide-react';
+import { AlarmClock, Camera, CheckCircle2, Clock, Sparkles } from 'lucide-react';
 import type { ScheduleItem, StudentProfile } from '../types/schedule';
 import {
   formatDateKey,
@@ -7,17 +7,20 @@ import {
   getDeadlineCountdown,
   getGreetingByHour,
 } from '../utils/dateUtils';
+import UserAvatar from './UserAvatar';
 
 interface DashboardOverviewProps {
   profile: StudentProfile | null;
   schedules: ScheduleItem[];
   onSelectDate: (dateKey: string) => void;
+  onOpenPhotoModal: () => void;
 }
 
 export default function DashboardOverview({
   profile,
   schedules,
   onSelectDate,
+  onOpenPhotoModal,
 }: DashboardOverviewProps) {
   const now = new Date();
   const todayKey = formatDateKey(now);
@@ -65,16 +68,39 @@ export default function DashboardOverview({
             )}
           </div>
 
-          <h2 className="mt-2.5 text-2xl sm:text-3xl font-extrabold text-[#2D3748] dark:text-slate-100 font-display text-balance">
-            {greeting}, {firstName}!
-          </h2>
-          <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-            {todayStats.total === 0
-              ? 'Belum ada jadwal tercatat untuk hari ini. Tambahkan kegiatan atau gunakan Isi Jadwal Otomatis.'
-              : todayStats.completedCount === todayStats.total
-              ? 'Semua agenda hari ini sudah selesai. Waktunya beristirahat sejenak!'
-              : `Kamu memiliki ${todayStats.total - todayStats.completedCount} agenda tersisa untuk diselesaikan hari ini.`}
-          </p>
+          <div className="mt-3 flex items-center gap-3.5">
+            <button
+              type="button"
+              onClick={onOpenPhotoModal}
+              title="Ubah foto profil"
+              aria-label="Ubah foto profil"
+              className="group relative rounded-2xl border-2 border-white dark:border-slate-700 shadow-sm cursor-pointer shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
+            >
+              <UserAvatar
+                photoUrl={profile?.photoBase64}
+                name={profile?.nama}
+                sizeClass="w-13 h-13 sm:w-14 sm:h-14"
+                textClass="text-lg"
+                roundedClass="rounded-[14px]"
+              />
+              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-lg bg-[#2D3748] dark:bg-violet-600 text-white border-2 border-white dark:border-slate-900 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Camera className="w-2.5 h-2.5" />
+              </span>
+            </button>
+
+            <div className="min-w-0">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#2D3748] dark:text-slate-100 font-display text-balance">
+                {greeting}, {firstName}!
+              </h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                {todayStats.total === 0
+                  ? 'Belum ada jadwal tercatat untuk hari ini. Tambahkan kegiatan atau gunakan Isi Jadwal Otomatis.'
+                  : todayStats.completedCount === todayStats.total
+                  ? 'Semua agenda hari ini sudah selesai. Waktunya beristirahat sejenak!'
+                  : `Kamu memiliki ${todayStats.total - todayStats.completedCount} agenda tersisa untuk diselesaikan hari ini.`}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Daily Progress Bar */}

@@ -131,8 +131,8 @@ export function getDeadlineCountdown(
 
 export async function compressImageToBase64(
   file: File,
-  maxWidth = 300,
-  quality = 0.7
+  maxSize = 320,
+  quality = 0.78
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -141,28 +141,45 @@ export async function compressImageToBase64(
       const img = new Image();
       img.onerror = () => reject(new Error('Format gambar tidak didukung.'));
       img.onload = () => {
-        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
-        const targetWidth = Math.round(img.width * scale);
-        const targetHeight = Math.round(img.height * scale);
+        const cropSide = Math.min(img.width, img.height);
+        const sx = Math.max(0, Math.round((img.width - cropSide) / 2));
+        const sy = Math.max(0, Math.round((img.height - cropSide) / 2));
 
-        const canvas = document.createElement('canvas');
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
+        const renderAt = (size: number, q: number): string => {
+          const target = Math.min(size, cropSide || size);
+          const canvas = document.createElement('canvas');
+          canvas.width = target;
+          canvas.height = target;
 
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Canvas tidak tersedia di browser ini.'));
-          return;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            throw new Error('Canvas tidak tersedia di browser ini.');
+          }
+
+          // White backdrop prevents black artifacts on transparent PNGs when exported as JPEG/WebP
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, target, target);
+          ctx.drawImage(img, sx, sy, cropSide, cropSide, 0, 0, target, target);
+
+          let output = canvas.toDataURL('image/webp', q);
+          if (!output.startsWith('data:image/webp')) {
+            output = canvas.toDataURL('image/jpeg', q);
+          }
+          return output;
+        };
+
+        try {
+          let result = renderAt(maxSize, quality);
+          if (result.length > 140000) {
+            result = renderAt(240, 0.65);
+          }
+          if (result.length > 140000) {
+            result = renderAt(180, 0.55);
+          }
+          resolve(result);
+        } catch (err) {
+          reject(err instanceof Error ? err : new Error('Gagal memproses gambar.'));
         }
-
-        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-
-        // Try WebP first, fall back to JPEG if browser returns PNG
-        let output = canvas.toDataURL('image/webp', quality);
-        if (!output.startsWith('data:image/webp')) {
-          output = canvas.toDataURL('image/jpeg', quality);
-        }
-        resolve(output);
       };
       img.src = String(reader.result);
     };
