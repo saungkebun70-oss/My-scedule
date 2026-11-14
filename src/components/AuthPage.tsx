@@ -7,7 +7,10 @@ import {
 } from 'firebase/auth';
 import {
   CalendarHeart,
+  Check,
   Cloud,
+  Copy,
+  ExternalLink,
   HardDrive,
   Lock,
   Mail,
@@ -15,7 +18,12 @@ import {
   User as UserIcon,
   X,
 } from 'lucide-react';
-import { auth, googleProvider, isFirebaseConfigured } from '../lib/firebase';
+import {
+  auth,
+  firebaseProjectId,
+  googleProvider,
+  isFirebaseConfigured,
+} from '../lib/firebase';
 
 interface AuthPageProps {
   onEnterLocalMode: (name?: string) => void;
@@ -34,28 +42,52 @@ export default function AuthPage({
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isUnauthorizedDomain, setIsUnauthorizedDomain] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState(false);
+
+  const currentDomain =
+    typeof window !== 'undefined' ? window.location.hostname : '';
 
   const mapFirebaseAuthError = (err: unknown): string => {
     const code = (err as { code?: string })?.code || '';
+    setIsUnauthorizedDomain(code === 'auth/unauthorized-domain');
+
     switch (code) {
+      case 'auth/unauthorized-domain':
+        return `Domain "${currentDomain}" belum didaftarkan di Firebase Authentication (Authorized domains).`;
       case 'auth/popup-closed-by-user':
         return 'Jendela login Google ditutup sebelum selesai. Silakan coba lagi.';
       case 'auth/popup-blocked':
         return 'Popup diblokir browser. Izinkan popup atau gunakan login Email/Password.';
+      case 'auth/cancelled-popup-request':
+        return 'Permintaan login sebelumnya dibatalkan. Silakan tekan tombol masuk sekali lagi.';
       case 'auth/operation-not-allowed':
-        return 'Login Email/Password belum diaktifkan di Firebase Console (Authentication → Sign-in method → aktifkan Email/Password). Anda tetap bisa langsung menggunakan Google Sign-In atau Mode Lokal.';
+        return 'Login Email/Password belum diaktifkan di Firebase Console (Authentication → Sign-in method → aktifkan Email/Password). Anda tetap bisa menggunakan Google Sign-In atau Mode Lokal.';
       case 'auth/email-already-in-use':
         return 'Email ini sudah terdaftar. Silakan masuk menggunakan tab Masuk.';
       case 'auth/weak-password':
         return 'Kata sandi minimal 6 karakter agar akun aman.';
       case 'auth/invalid-email':
         return 'Format alamat email tidak valid.';
+      case 'auth/network-request-failed':
+        return 'Koneksi internet bermasalah. Periksa jaringan Anda lalu coba lagi.';
       case 'auth/invalid-credential':
       case 'auth/user-not-found':
       case 'auth/wrong-password':
         return 'Email atau kata sandi belum cocok. Periksa kembali ya!';
       default:
         return err instanceof Error ? err.message : 'Terjadi kesalahan saat masuk.';
+    }
+  };
+
+  const handleCopyDomain = async () => {
+    if (!currentDomain) return;
+    try {
+      await navigator.clipboard.writeText(currentDomain);
+      setCopiedDomain(true);
+      window.setTimeout(() => setCopiedDomain(false), 2500);
+    } catch {
+      // ignore clipboard errors
     }
   };
 
@@ -66,6 +98,7 @@ export default function AuthPage({
       return;
     }
     setErrorMsg(null);
+    setIsUnauthorizedDomain(false);
     setLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
@@ -85,6 +118,7 @@ export default function AuthPage({
       return;
     }
     setErrorMsg(null);
+    setIsUnauthorizedDomain(false);
     setLoading(true);
     try {
       if (mode === 'register') {
@@ -102,6 +136,10 @@ export default function AuthPage({
       setLoading(false);
     }
   };
+
+  const consoleAuthUrl = firebaseProjectId
+    ? `https://console.firebase.google.com/project/${firebaseProjectId}/authentication/settings`
+    : 'https://console.firebase.google.com/';
 
   const authCard = (
     <div className="w-full rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-[0_20px_50px_rgba(45,55,72,0.14)] flex flex-col justify-center">
@@ -139,6 +177,7 @@ export default function AuthPage({
           onClick={() => {
             setMode('login');
             setErrorMsg(null);
+            setIsUnauthorizedDomain(false);
           }}
           className={`min-h-[42px] rounded-xl text-sm font-bold transition-all cursor-pointer ${
             mode === 'login'
@@ -153,6 +192,7 @@ export default function AuthPage({
           onClick={() => {
             setMode('register');
             setErrorMsg(null);
+            setIsUnauthorizedDomain(false);
           }}
           className={`min-h-[42px] rounded-xl text-sm font-bold transition-all cursor-pointer ${
             mode === 'register'
@@ -201,7 +241,7 @@ export default function AuthPage({
         </>
       ) : (
         <div className="mt-5 rounded-2xl bg-[#FFF8E7] border border-[#FDE68A] p-3.5 text-xs text-amber-900">
-          Variabel environment Firebase belum diisi, sehingga aplikasi berjalan otomatis dalam{' '}
+          Konfigurasi Firebase belum aktif, sehingga aplikasi berjalan otomatis dalam{' '}
           <strong>Mode Lokal (localStorage)</strong>.
         </div>
       )}
@@ -264,9 +304,48 @@ export default function AuthPage({
         {errorMsg && (
           <div
             role="alert"
-            className="rounded-2xl bg-[#FFF3F5] border border-[#FBCFE8] px-4 py-3 text-xs text-[#9D174D] leading-relaxed font-semibold"
+            className="rounded-2xl bg-[#FFF3F5] border border-[#FBCFE8] px-4 py-3 text-xs text-[#9D174D] leading-relaxed font-semibold space-y-2.5"
           >
-            {errorMsg}
+            <p>{errorMsg}</p>
+
+            {isUnauthorizedDomain && currentDomain && (
+              <div className="pt-1 space-y-2 text-[11px] text-slate-700 font-medium">
+                <p>
+                  Buka <strong>Firebase Console → Authentication → Settings → Authorized domains</strong>, lalu tambahkan domain berikut:
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="px-2.5 py-1 rounded-lg bg-white border border-[#FBCFE8] text-[#9D174D] font-bold">
+                    {currentDomain}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={handleCopyDomain}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold cursor-pointer"
+                  >
+                    {copiedDomain ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Tersalin</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Salin Domain</span>
+                      </>
+                    )}
+                  </button>
+                  <a
+                    href={consoleAuthUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#2D3748] text-white font-bold hover:bg-[#1E293B]"
+                  >
+                    <span>Buka Firebase Console</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

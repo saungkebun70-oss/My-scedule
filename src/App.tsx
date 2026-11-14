@@ -8,6 +8,7 @@ import {
   Clock,
   Home,
   ListTodo,
+  MessageCircle,
   User,
   X,
 } from 'lucide-react';
@@ -15,6 +16,7 @@ import AestheticCalendar from './components/AestheticCalendar';
 import AuthPage from './components/AuthPage';
 import ConfirmDialog from './components/ConfirmDialog';
 import DashboardOverview from './components/DashboardOverview';
+import DatePreviewModal from './components/DatePreviewModal';
 import MobileNav, { MobileTopBar, type MobileTab } from './components/MobileNav';
 import ScheduleList from './components/ScheduleList';
 import ScheduleModal from './components/ScheduleModal';
@@ -74,6 +76,7 @@ export default function App() {
   const [showAllDates, setShowAllDates] = useState(false);
 
   const [activePage, setActivePage] = useState<MobileTab>('beranda');
+  const [datePopupKey, setDatePopupKey] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
 
@@ -99,15 +102,34 @@ export default function App() {
 
   const {
     settings: reminderSettings,
+    waSettings,
     permission: notificationPermission,
     toggleReminders,
     setLeadMinutes,
+    updateWhatsAppSettings,
     sendTestNotification,
-  } = useScheduleReminders(schedules, handleInAppReminder);
+    sendDailySummaryToWhatsAppWebhook,
+  } = useScheduleReminders(schedules, profile?.nama, handleInAppReminder);
+
+  const handleSendDailyWhatsApp = useCallback(async () => {
+    const res = await sendDailySummaryToWhatsAppWebhook();
+    if (waSettings.provider === 'link') {
+      setReminderAlert({
+        id: `wa_daily_${Date.now()}`,
+        title: 'Rekap Jadwal Hari Ini Siap Dikirim ke WA',
+        body: 'Ketuk tombol Kirim ke WhatsApp di bawah untuk mengirim daftar jadwal hari ini.',
+        waUrl: res.waUrl,
+      });
+    } else if (res.ok) {
+      showToast(`Rekap jadwal hari ini terkirim ke WhatsApp (${res.detail || 'Berhasil'}).`);
+    } else {
+      showToast(res.detail || 'Gagal mengirim ke gateway WhatsApp.', 'error');
+    }
+  }, [sendDailySummaryToWhatsAppWebhook, waSettings.provider, showToast]);
 
   useEffect(() => {
     if (!reminderAlert) return;
-    const timer = window.setTimeout(() => setReminderAlert(null), 7000);
+    const timer = window.setTimeout(() => setReminderAlert(null), 10000);
     return () => window.clearTimeout(timer);
   }, [reminderAlert]);
 
@@ -428,6 +450,22 @@ export default function App() {
               <p className="mt-0.5 text-xs text-slate-600 leading-relaxed">
                 {reminderAlert.body}
               </p>
+              {reminderAlert.waStatus && (
+                <p className="mt-1 text-[11px] font-bold text-[#065F46]">
+                  Status WA: {reminderAlert.waStatus}
+                </p>
+              )}
+              {reminderAlert.waUrl && (
+                <a
+                  href={reminderAlert.waUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E2ECE9] hover:bg-[#CBE3DC] text-[#065F46] text-[11px] font-bold transition-colors"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>Kirim ke WhatsApp</span>
+                </a>
+              )}
             </div>
             <button
               type="button"
@@ -462,10 +500,13 @@ export default function App() {
               onAddSchedule={openAddModal}
               onLogout={handleLogout}
               reminderSettings={reminderSettings}
+              waSettings={waSettings}
               notificationPermission={notificationPermission}
               onToggleReminders={toggleReminders}
               onChangeLeadMinutes={setLeadMinutes}
+              onUpdateWhatsAppSettings={updateWhatsAppSettings}
               onTestNotification={sendTestNotification}
+              onSendDailyWhatsApp={handleSendDailyWhatsApp}
             />
           </aside>
 
@@ -551,6 +592,7 @@ export default function App() {
                         onSelectDate={(dateKey) => {
                           setSelectedDate(dateKey);
                           setShowAllDates(false);
+                          setDatePopupKey(dateKey);
                         }}
                       />
                     </div>
@@ -613,10 +655,13 @@ export default function App() {
                         onAddSchedule={openAddModal}
                         onLogout={handleLogout}
                         reminderSettings={reminderSettings}
+                        waSettings={waSettings}
                         notificationPermission={notificationPermission}
                         onToggleReminders={toggleReminders}
                         onChangeLeadMinutes={setLeadMinutes}
+                        onUpdateWhatsAppSettings={updateWhatsAppSettings}
                         onTestNotification={sendTestNotification}
+                        onSendDailyWhatsApp={handleSendDailyWhatsApp}
                       />
                     </div>
 
@@ -727,6 +772,21 @@ export default function App() {
           onEnterLocalMode={handleEnterLocalMode}
         />
       )}
+
+      {/* Cute Mini Date Preview Popup */}
+      <DatePreviewModal
+        dateKey={datePopupKey}
+        schedules={schedules}
+        studentName={profile?.nama}
+        waPhone={waSettings.phone}
+        onClose={() => setDatePopupKey(null)}
+        onToggleComplete={handleToggleComplete}
+        onEditItem={openEditModal}
+        onAddOnDate={(dateKey) => {
+          setSelectedDate(dateKey);
+          openAddModal();
+        }}
+      />
 
       {/* Add / Edit Schedule Modal */}
       <ScheduleModal

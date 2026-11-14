@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CATEGORY_META, type ScheduleItem } from '../types/schedule';
 import { formatDateKey, parseDateKey } from '../utils/dateUtils';
+import {
+  buildReminderWhatsAppMessage,
+  buildScheduleWhatsAppMessage,
+  buildWhatsAppLink,
+  sendAutomatedWhatsAppWebhook,
+  type WhatsAppSettings,
+} from '../utils/whatsappUtils';
 
 const SETTINGS_STORAGE_KEY = 'my_schedule_reminder_settings';
+const WA_SETTINGS_STORAGE_KEY = 'my_schedule_whatsapp_settings';
 const NOTIFIED_STORAGE_KEY = 'my_schedule_notified_events';
 
 export interface ReminderSettings {
@@ -14,6 +22,8 @@ export interface InAppReminderAlert {
   id: string;
   title: string;
   body: string;
+  waUrl?: string;
+  waStatus?: string;
 }
 
 export type BrowserNotificationPermission = NotificationPermission | 'unsupported';
@@ -33,9 +43,39 @@ function loadSettings(): ReminderSettings {
       };
     }
   } catch {
-    // ignore storage parse failure
+    // ignore
   }
   return { enabled: true, leadMinutes: 30 };
+}
+
+function loadWhatsAppSettings(): WhatsAppSettings {
+  try {
+    const raw = localStorage.getItem(WA_SETTINGS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<WhatsAppSettings>;
+      return {
+        phone: typeof parsed.phone === 'string' ? parsed.phone : '',
+        autoEnabled: Boolean(parsed.autoEnabled),
+        provider:
+          parsed.provider === 'fonnte' ||
+          parsed.provider === 'callmebot' ||
+          parsed.provider === 'webhook'
+            ? parsed.provider
+            : 'link',
+        apiKey: typeof parsed.apiKey === 'string' ? parsed.apiKey : '',
+        webhookUrl: typeof parsed.webhookUrl === 'string' ? parsed.webhookUrl : '',
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return {
+    phone: '',
+    autoEnabled: false,
+    provider: 'link',
+    apiKey: '',
+    webhookUrl: '',
+  };
 }
 
 function loadNotifiedSet(): Set<string> {
@@ -84,9 +124,13 @@ function fireBrowserNotification(title: string, body: string, tag: string) {
 
 export function useScheduleReminders(
   schedules: ScheduleItem[],
+  studentName?: string,
   onInAppReminder?: (alert: InAppReminderAlert) => void
 ) {
   const [settings, setSettings] = useState<ReminderSettings>(() => loadSettings());
+  const [waSettings, setWaSettings] = useState<WhatsAppSettings>(() =>
+    loadWhatsAppSettings()
+  );
   const [permission, setPermission] = useState<BrowserNotificationPermission>(() =>
     getPermissionState()
   );
@@ -98,6 +142,18 @@ export function useScheduleReminders(
       // ignore
     }
   }, [settings]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WA_SETTINGS_STORAGE_KEY, JSON.stringify(waSettings));
+    } catch {
+      // ignore
+    }
+  }, [waSettings]);
+
+  const updateWhatsAppSettings = useCallback((updates: Partial<WhatsAppSettings>) => {
+    setWaSettings((prev) => ({ ...prev, ...updates }));
+  }, []);
 
   const requestBrowserPermission = useCallback(async (): Promise<BrowserNotificationPermission> => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -138,24 +194,59 @@ export function useScheduleReminders(
 
     const title = 'Pengingat My Schedule Aktif';
     const body = `Notifikasi akan muncul ${settings.leadMinutes} menit sebelum jadwal matkul atau deadline dimulai.`;
+    const waText = buildReminderWhatsAppMessage(title, body, studentName);
+    const waUrl = buildWhatsAppLink(waSettings.phone, waText);
 
     if (currentPerm === 'granted') {
       fireBrowserNotification(title, body, `test_${Date.now()}`);
     }
+
+    let waStatus: string | undefined;
+    if (waSettings.autoEnabled && waSettings.provider !== 'link') {
+      const res = await sendAutomatedWhatsAppWebhook(waSettings, waText);
+      waStatus = res.detail;
+    }
+
     onInAppReminder?.({
       id: `test_${Date.now()}`,
       title,
       body:
         currentPerm === 'denied'
-          ? `${body} (Izin notifikasi OS diblokir browser; pengingat dalam aplikasi tetap aktif.)`
+          ? `${body} (Izin notifikasi OS diblokir browser; pengingat dalam aplikasi & WA tetap tersedia.)`
           : body,
+      waUrl,
+      waStatus,
     });
-  }, [permission, requestBrowserPermission, settings.leadMinutes, onInAppReminder]);
+  }, [
+    permission,
+    requestBrowserPermission,
+    settings.leadMinutes,
+    studentName,
+    waSettings,
+    onInAppReminder,
+  ]);
+
+  const sendDailySummaryToWhatsAppWebhook = useCallback(async (): Promise<{
+    ok: boolean;
+    detail?: string;
+    waUrl: string;
+  }> => {
+    const todayKey = formatDateKey(new Date());
+    const todayItems = schedules.filter((item) => item.date === todayKey);
+    const message = buildScheduleWhatsAppMessage(todayKey, todayItems, studentName);
+    const waUrl = buildWhatsAppLink(waSettings.phone, message);
+
+    if (waSettings.provider !== 'link') {
+      const res = await sendAutomatedWhatsAppWebhook(waSettings, message);
+      return { ok: res.ok, detail: res.detail, waUrl };
+    }
+    return { ok: true, waUrl };
+  }, [schedules, studentName, waSettings]);
 
   useEffect(() => {
     if (!settings.enabled || schedules.length === 0) return;
 
-    const checkUpcoming = () => {
+    const checkUpcoming = async () => {
       const now = new Date();
       const todayKey = formatDateKey(now);
       const notified = loadNotifiedSet();
@@ -163,7 +254,6 @@ export function useScheduleReminders(
 
       for (const item of schedules) {
         if (item.completed) continue;
-        // Prioritize Matkul, Rapat & Deadline, and Acara/Harian on Today
         if (item.date !== todayKey) continue;
 
         const targetDate = parseDateKey(item.date);
@@ -183,7 +273,6 @@ export function useScheduleReminders(
         const isMatkul = item.category === 'matkul';
         const isDeadlineOrMeeting = item.category === 'rapat_deadline';
 
-        // Trigger when within leadMinutes (or 5 min grace just as it starts)
         const triggerWindow = settings.leadMinutes;
         if (diffMinutes >= -1 && diffMinutes <= triggerWindow) {
           const eventKey = `${item.id}_${item.date}_${item.startTime}_${triggerWindow}`;
@@ -213,10 +302,22 @@ export function useScheduleReminders(
           }
 
           fireBrowserNotification(title, body, eventKey);
+
+          const waText = buildReminderWhatsAppMessage(title, body, studentName);
+          const waUrl = buildWhatsAppLink(waSettings.phone, waText);
+
+          let waStatus: string | undefined;
+          if (waSettings.autoEnabled && waSettings.provider !== 'link') {
+            const res = await sendAutomatedWhatsAppWebhook(waSettings, waText);
+            waStatus = res.detail;
+          }
+
           onInAppReminder?.({
             id: eventKey,
             title,
             body,
+            waUrl,
+            waStatus,
           });
         }
       }
@@ -229,14 +330,24 @@ export function useScheduleReminders(
     checkUpcoming();
     const intervalId = window.setInterval(checkUpcoming, 30000);
     return () => window.clearInterval(intervalId);
-  }, [schedules, settings.enabled, settings.leadMinutes, onInAppReminder]);
+  }, [
+    schedules,
+    settings.enabled,
+    settings.leadMinutes,
+    studentName,
+    waSettings,
+    onInAppReminder,
+  ]);
 
   return {
     settings,
+    waSettings,
     permission,
     toggleReminders,
     setLeadMinutes,
+    updateWhatsAppSettings,
     requestBrowserPermission,
     sendTestNotification,
+    sendDailySummaryToWhatsAppWebhook,
   };
 }

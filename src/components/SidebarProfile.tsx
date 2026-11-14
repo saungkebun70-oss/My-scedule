@@ -13,7 +13,9 @@ import {
   Home,
   ListTodo,
   LogOut,
+  MessageCircle,
   Plus,
+  Send,
   Sparkles,
   Trash2,
   User,
@@ -25,6 +27,7 @@ import type {
 } from '../hooks/useScheduleReminders';
 import { MOOD_OPTIONS, type StudentProfile } from '../types/schedule';
 import { compressImageToBase64 } from '../utils/dateUtils';
+import type { WhatsAppProvider, WhatsAppSettings } from '../utils/whatsappUtils';
 import type { MobileTab } from './MobileNav';
 
 interface SidebarProfileProps {
@@ -43,10 +46,13 @@ interface SidebarProfileProps {
   onAddSchedule: () => void;
   onLogout: () => void;
   reminderSettings: ReminderSettings;
+  waSettings: WhatsAppSettings;
   notificationPermission: BrowserNotificationPermission;
   onToggleReminders: () => void;
   onChangeLeadMinutes: (mins: 15 | 30 | 60) => void;
+  onUpdateWhatsAppSettings: (updates: Partial<WhatsAppSettings>) => void;
   onTestNotification: () => void;
+  onSendDailyWhatsApp: () => void;
 }
 
 export default function SidebarProfile({
@@ -65,10 +71,13 @@ export default function SidebarProfile({
   onAddSchedule,
   onLogout,
   reminderSettings,
+  waSettings,
   notificationPermission,
   onToggleReminders,
   onChangeLeadMinutes,
+  onUpdateWhatsAppSettings,
   onTestNotification,
+  onSendDailyWhatsApp,
 }: SidebarProfileProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [editing, setEditing] = useState(false);
@@ -544,6 +553,120 @@ export default function SidebarProfile({
             </button>
           </div>
         )}
+
+        {/* WhatsApp Automatic Notification Section */}
+        <div className="pt-3 border-t border-slate-100 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-[#E2ECE9] text-[#065F46] flex items-center justify-center shrink-0">
+                <MessageCircle className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-[#2D3748] truncate">
+                  Notif ke WhatsApp
+                </p>
+                <p className="text-[11px] text-slate-500 truncate">
+                  {waSettings.provider === 'link'
+                    ? 'Siap kirim via wa.me'
+                    : waSettings.autoEnabled
+                    ? `Otomatis (${waSettings.provider})`
+                    : 'Mode gateway nonaktif'}
+                </p>
+              </div>
+            </div>
+
+            {waSettings.provider !== 'link' && (
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateWhatsAppSettings({ autoEnabled: !waSettings.autoEnabled })
+                }
+                className={`px-2.5 py-1 min-h-[30px] rounded-xl text-[11px] font-bold transition-colors cursor-pointer ${
+                  waSettings.autoEnabled
+                    ? 'bg-[#E2ECE9] text-[#065F46]'
+                    : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {waSettings.autoEnabled ? 'Auto ON' : 'Auto OFF'}
+              </button>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 mb-1">
+              Nomor WhatsApp Anda
+            </label>
+            <input
+              type="tel"
+              value={waSettings.phone}
+              onChange={(e) => onUpdateWhatsAppSettings({ phone: e.target.value })}
+              placeholder="Contoh: 081234567890"
+              className="w-full px-3 py-2 rounded-xl bg-[#FAF9F6] border border-slate-200 text-xs font-semibold text-[#2D3748] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#10B981]/30"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 mb-1">
+              Metode Pengiriman WA
+            </label>
+            <select
+              value={waSettings.provider}
+              onChange={(e) =>
+                onUpdateWhatsAppSettings({
+                  provider: e.target.value as WhatsAppProvider,
+                  autoEnabled: e.target.value !== 'link',
+                })
+              }
+              className="w-full px-3 py-2 rounded-xl bg-[#FAF9F6] border border-slate-200 text-xs font-semibold text-[#2D3748] focus:outline-none focus:ring-2 focus:ring-[#10B981]/30"
+            >
+              <option value="link">Kirim Langsung via WhatsApp (Gratis)</option>
+              <option value="fonnte">Otomatis Latar Belakang · Fonnte</option>
+              <option value="callmebot">Otomatis Latar Belakang · CallMeBot</option>
+              <option value="webhook">Otomatis Latar Belakang · Webhook URL</option>
+            </select>
+          </div>
+
+          {(waSettings.provider === 'fonnte' || waSettings.provider === 'callmebot') && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                {waSettings.provider === 'fonnte' ? 'Token Fonnte' : 'API Key CallMeBot'}
+              </label>
+              <input
+                type="password"
+                value={waSettings.apiKey}
+                onChange={(e) => onUpdateWhatsAppSettings({ apiKey: e.target.value })}
+                placeholder="Masukkan API Key / Token..."
+                className="w-full px-3 py-2 rounded-xl bg-[#FAF9F6] border border-slate-200 text-xs text-[#2D3748] focus:outline-none focus:ring-2 focus:ring-[#10B981]/30"
+              />
+            </div>
+          )}
+
+          {waSettings.provider === 'webhook' && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                URL Webhook WhatsApp
+              </label>
+              <input
+                type="url"
+                value={waSettings.webhookUrl}
+                onChange={(e) =>
+                  onUpdateWhatsAppSettings({ webhookUrl: e.target.value })
+                }
+                placeholder="https://contoh-webhook.com/wa"
+                className="w-full px-3 py-2 rounded-xl bg-[#FAF9F6] border border-slate-200 text-xs text-[#2D3748] focus:outline-none focus:ring-2 focus:ring-[#10B981]/30"
+              />
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={onSendDailyWhatsApp}
+            className="w-full min-h-[38px] px-3 py-1.5 rounded-xl bg-[#E2ECE9] hover:bg-[#CBE3DC] text-[#065F46] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>Kirim Rekap Hari Ini ke WA</span>
+          </button>
+        </div>
       </div>
     </div>
   );

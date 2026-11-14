@@ -43,6 +43,7 @@ function resolveFirebaseConfig(): FirebaseResolvedConfig | null {
 const resolvedConfig = resolveFirebaseConfig();
 
 export const isFirebaseConfigured = Boolean(resolvedConfig);
+export const firebaseProjectId = resolvedConfig?.projectId || null;
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
