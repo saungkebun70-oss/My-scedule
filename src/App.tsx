@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { getRedirectResult, onAuthStateChanged, signOut } from 'firebase/auth';
 import {
   BellRing,
   BookOpen,
@@ -23,6 +23,7 @@ import DatePreviewModal from './components/DatePreviewModal';
 import MobileNav, { MobileTopBar, type MobileTab } from './components/MobileNav';
 import NotificationPermissionModal from './components/NotificationPermissionModal';
 import ProfilePhotoModal from './components/ProfilePhotoModal';
+import { OfflineIndicator } from './components/PWAInstallButton';
 import ScheduleList from './components/ScheduleList';
 import ScheduleModal from './components/ScheduleModal';
 import ShareQrModal from './components/ShareQrModal';
@@ -210,6 +211,12 @@ export default function App() {
       return;
     }
 
+    getRedirectResult(auth).catch((err) => {
+      const msg =
+        err instanceof Error ? err.message : 'Login redirect Google gagal diselesaikan.';
+      showToast(msg, 'error');
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       if (fbUser) {
         localStorage.removeItem(LOCAL_SESSION_KEY);
@@ -241,7 +248,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [showToast]);
 
   // Seed initial data on first login + attach realtime Firestore / Local listeners
   useEffect(() => {
@@ -469,7 +476,7 @@ export default function App() {
 
   if (!authReady) {
     return (
-      <div className="min-h-screen bg-[#FAF9F6] dark:bg-slate-950 flex items-center justify-center p-6 transition-colors">
+      <div className="min-h-[100dvh] bg-[#FAF9F6] dark:bg-slate-950 flex items-center justify-center p-6 transition-colors">
         <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-8 text-center shadow-[0_8px_32px_rgba(45,55,72,0.05)]">
           <div className="w-12 h-12 rounded-2xl bg-[#E8DFF5] dark:bg-violet-950/80 mx-auto animate-pulse" />
           <p className="mt-4 text-sm font-bold text-[#2D3748] dark:text-slate-100">Menyiapkan My Schedule...</p>
@@ -490,7 +497,7 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] dark:bg-slate-950 text-[#2D3748] dark:text-slate-100 pb-24 lg:pb-10 transition-colors">
+    <div className="min-h-[100dvh] bg-[#FAF9F6] dark:bg-slate-950 text-[#2D3748] dark:text-slate-100 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-10 transition-colors">
       <MobileTopBar
         profilePhoto={profile?.photoBase64}
         studentName={profile?.nama || user.displayName}
@@ -502,6 +509,8 @@ export default function App() {
         onOpenShareQr={() => setShareQrOpen(true)}
         onOpenPhotoModal={() => setPhotoModalOpen(true)}
       />
+
+      <OfflineIndicator />
 
       {/* Toast Notification Banner */}
       {bannerMessage && (
@@ -762,12 +771,14 @@ export default function App() {
                     <DashboardOverview
                       profile={profile}
                       schedules={schedules}
+                      waPhone={waSettings.phone}
                       onSelectDate={(dateKey) => {
                         setSelectedDate(dateKey);
                         setShowAllDates(false);
                         setActivePage('kalender');
                       }}
                       onOpenPhotoModal={() => setPhotoModalOpen(true)}
+                      onSendDailyWhatsApp={handleSendDailyWhatsApp}
                     />
 
                     <ScheduleList
@@ -783,6 +794,8 @@ export default function App() {
                       onEditItem={openEditModal}
                       onDeleteItem={(item) => setDeleteTarget(item)}
                       onAddSchedule={openAddModal}
+                      studentName={profile?.nama}
+                      waPhone={waSettings.phone}
                     />
                   </div>
                 )}
@@ -815,6 +828,8 @@ export default function App() {
                         onEditItem={openEditModal}
                         onDeleteItem={(item) => setDeleteTarget(item)}
                         onAddSchedule={openAddModal}
+                        studentName={profile?.nama}
+                        waPhone={waSettings.phone}
                       />
                     </div>
                   </div>
@@ -835,6 +850,8 @@ export default function App() {
                     onEditItem={openEditModal}
                     onDeleteItem={(item) => setDeleteTarget(item)}
                     onAddSchedule={openAddModal}
+                    studentName={profile?.nama}
+                    waPhone={waSettings.phone}
                     pageSize={6}
                   />
                 )}

@@ -20,6 +20,25 @@ interface FirebaseResolvedConfig {
 }
 
 function resolveFirebaseConfig(): FirebaseResolvedConfig | null {
+  const envApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  const envProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+
+  if (envApiKey && envProjectId && envProjectId !== 'remixed-project-id') {
+    return {
+      apiKey: envApiKey,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${envProjectId}.firebaseapp.com`,
+      projectId: envProjectId,
+      storageBucket:
+        import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${envProjectId}.firebasestorage.app`,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+      appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+      firestoreDatabaseId:
+        import.meta.env.VITE_FIREBASE_DATABASE_ID ||
+        appletConfig?.firestoreDatabaseId ||
+        undefined,
+    };
+  }
+
   if (
     appletConfig &&
     appletConfig.apiKey &&

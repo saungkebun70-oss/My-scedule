@@ -1,5 +1,13 @@
 import { useMemo } from 'react';
-import { AlarmClock, Camera, CheckCircle2, Clock, Sparkles } from 'lucide-react';
+import {
+  AlarmClock,
+  Camera,
+  CheckCircle2,
+  Clock,
+  MessageCircle,
+  Send,
+  Sparkles,
+} from 'lucide-react';
 import type { ScheduleItem, StudentProfile } from '../types/schedule';
 import {
   formatDateKey,
@@ -7,20 +15,28 @@ import {
   getDeadlineCountdown,
   getGreetingByHour,
 } from '../utils/dateUtils';
+import {
+  buildSingleScheduleWhatsAppMessage,
+  buildWhatsAppLink,
+} from '../utils/whatsappUtils';
 import UserAvatar from './UserAvatar';
 
 interface DashboardOverviewProps {
   profile: StudentProfile | null;
   schedules: ScheduleItem[];
+  waPhone?: string;
   onSelectDate: (dateKey: string) => void;
   onOpenPhotoModal: () => void;
+  onSendDailyWhatsApp?: () => void;
 }
 
 export default function DashboardOverview({
   profile,
   schedules,
+  waPhone = '',
   onSelectDate,
   onOpenPhotoModal,
+  onSendDailyWhatsApp,
 }: DashboardOverviewProps) {
   const now = new Date();
   const todayKey = formatDateKey(now);
@@ -126,6 +142,19 @@ export default function DashboardOverview({
               style={{ width: `${todayStats.percentage}%` }}
             />
           </div>
+
+          {onSendDailyWhatsApp && (
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={onSendDailyWhatsApp}
+                className="min-h-[38px] px-3.5 py-1.5 rounded-2xl bg-[#E2ECE9] hover:bg-[#CBE3DC] dark:bg-emerald-950/75 dark:hover:bg-emerald-900/75 text-[#065F46] dark:text-emerald-300 text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5 shrink-0" />
+                <span>Kirim Ringkasan Jadwal Hari Ini ke WA</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -162,13 +191,20 @@ export default function DashboardOverview({
                   : 'bg-[#DAEAF6] text-[#1E40AF] dark:bg-sky-950/80 dark:text-sky-300';
 
               return (
-                <button
+                <div
                   key={item.id}
-                  type="button"
                   onClick={() => onSelectDate(item.date)}
-                  className="w-full text-left rounded-2xl bg-white/90 hover:bg-white dark:bg-slate-900/90 dark:hover:bg-slate-900 p-3 border border-white/80 dark:border-slate-800 shadow-xs transition-all flex items-center justify-between gap-3 cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelectDate(item.date);
+                    }
+                  }}
+                  className="w-full text-left rounded-2xl bg-white/90 hover:bg-white dark:bg-slate-900/90 dark:hover:bg-slate-900 p-3 border border-white/80 dark:border-slate-800 shadow-xs transition-all flex items-center justify-between gap-2.5 cursor-pointer"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-[#2D3748] dark:text-slate-100 truncate">
                       {item.title}
                     </p>
@@ -179,12 +215,28 @@ export default function DashboardOverview({
                       <span>{item.startTime}</span>
                     </p>
                   </div>
-                  <span
-                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap shrink-0 tabular-nums ${badgeStyle}`}
-                  >
-                    {countdown.label}
-                  </span>
-                </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap tabular-nums ${badgeStyle}`}
+                    >
+                      {countdown.label}
+                    </span>
+                    <a
+                      href={buildWhatsAppLink(
+                        waPhone,
+                        buildSingleScheduleWhatsAppMessage(item, profile?.nama)
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title="Ingatkan via WA"
+                      aria-label={`Ingatkan ${item.title} via WhatsApp`}
+                      className="min-w-[32px] min-h-[32px] rounded-xl bg-[#E2ECE9] hover:bg-[#CBE3DC] dark:bg-emerald-950/80 dark:hover:bg-emerald-900/80 text-[#065F46] dark:text-emerald-300 flex items-center justify-center transition-colors"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </div>
               );
             })
           )}

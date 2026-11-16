@@ -41,6 +41,7 @@ import {
   type WhatsAppSettings,
 } from '../utils/whatsappUtils';
 import type { MobileTab } from './MobileNav';
+import { PWAInstallButton } from './PWAInstallButton';
 import UserAvatar from './UserAvatar';
 
 interface SidebarProfileProps {
@@ -502,6 +503,8 @@ export default function SidebarProfile({
           </button>
         )}
 
+        <PWAInstallButton />
+
         <button
           type="button"
           onClick={onOpenShareQr}
@@ -586,6 +589,8 @@ export default function SidebarProfile({
                 {!notificationsAllowed
                   ? notificationPermission === 'denied'
                     ? 'Diblokir browser (Nonaktif)'
+                    : notificationPermission === 'unsupported'
+                    ? 'Perlu Tambah ke Layar Utama (iOS)'
                     : 'Belum diizinkan (Nonaktif)'
                   : notificationPermission === 'granted'
                   ? 'Diizinkan & aktif'

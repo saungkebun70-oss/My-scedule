@@ -131,7 +131,7 @@ export default function MobileNav({
         type="button"
         onClick={onAddSchedule}
         aria-label="Tambah Jadwal Baru"
-        className="lg:hidden fixed right-4 bottom-20 z-40 h-13 px-4 rounded-2xl bg-[#2D3748] hover:bg-[#1E293B] dark:bg-violet-600 dark:hover:bg-violet-500 text-white shadow-[0_10px_28px_rgba(45,55,72,0.28)] dark:shadow-[0_10px_28px_rgba(109,40,217,0.35)] flex items-center gap-2 font-bold text-sm active:scale-95 transition-transform cursor-pointer"
+        className="lg:hidden fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 h-13 px-4 rounded-2xl bg-[#2D3748] hover:bg-[#1E293B] dark:bg-violet-600 dark:hover:bg-violet-500 text-white shadow-[0_10px_28px_rgba(45,55,72,0.28)] dark:shadow-[0_10px_28px_rgba(109,40,217,0.35)] flex items-center gap-2 font-bold text-sm active:scale-95 transition-transform cursor-pointer"
       >
         <Plus className="w-5 h-5" />
         <span>Tambah</span>
@@ -140,7 +140,7 @@ export default function MobileNav({
       {/* Fixed Bottom Navigation Bar */}
       <nav
         aria-label="Navigasi Mobile"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800 grid grid-cols-4 items-center px-2 transition-colors"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 min-h-16 pb-[env(safe-area-inset-bottom)] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800 grid grid-cols-4 items-center px-2 pt-1 transition-colors"
       >
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -150,7 +150,7 @@ export default function MobileNav({
               key={tab.id}
               type="button"
               onClick={() => onSelectTab(tab.id)}
-              className={`min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition-colors cursor-pointer ${
+              className={`min-h-[48px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition-colors cursor-pointer ${
                 active
                   ? 'text-[#5B21B6] dark:text-violet-300'
                   : 'text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'

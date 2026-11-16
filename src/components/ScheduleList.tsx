@@ -8,6 +8,7 @@ import {
   Clock,
   Edit2,
   MapPin,
+  MessageCircle,
   Plus,
   Search,
   Sparkles,
@@ -24,6 +25,10 @@ import {
   formatIndonesianDate,
   getDeadlineCountdown,
 } from '../utils/dateUtils';
+import {
+  buildSingleScheduleWhatsAppMessage,
+  buildWhatsAppLink,
+} from '../utils/whatsappUtils';
 
 interface ScheduleListProps {
   schedules: ScheduleItem[];
@@ -38,6 +43,8 @@ interface ScheduleListProps {
   onEditItem: (item: ScheduleItem) => void;
   onDeleteItem: (item: ScheduleItem) => void;
   onAddSchedule: () => void;
+  studentName?: string;
+  waPhone?: string;
   pageSize?: number;
 }
 
@@ -62,6 +69,8 @@ export default function ScheduleList({
   onEditItem,
   onDeleteItem,
   onAddSchedule,
+  studentName,
+  waPhone = '',
   pageSize = 6,
 }: ScheduleListProps) {
   const todayKey = formatDateKey(new Date());
@@ -337,6 +346,19 @@ export default function ScheduleList({
                           </span>
                         )}
 
+                        <a
+                          href={buildWhatsAppLink(
+                            waPhone,
+                            buildSingleScheduleWhatsAppMessage(item, studentName)
+                          )}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Kirim / Ingatkan ke WhatsApp"
+                          aria-label={`Ingatkan ${item.title} ke WhatsApp`}
+                          className="min-w-[38px] min-h-[38px] rounded-xl flex items-center justify-center text-[#059669] dark:text-emerald-400 hover:bg-[#E2ECE9] dark:hover:bg-emerald-950/70 transition-colors cursor-pointer"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </a>
                         <button
                           type="button"
                           onClick={() => onEditItem(item)}

@@ -11,6 +11,8 @@
     font-family: var(--font-sans);
     color: #2d3748;
     background-color: #faf9f6;
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
   }
 
   html.dark {
@@ -21,6 +23,14 @@
 
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
+  }
+
+  @media (max-width: 1023px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    select,
+    textarea {
+      font-size: 16px;
+    }
   }
 }
 

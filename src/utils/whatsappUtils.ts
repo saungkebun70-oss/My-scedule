@@ -1,5 +1,5 @@
 import { CATEGORY_META, type ScheduleItem } from '../types/schedule';
-import { formatIndonesianDate } from './dateUtils';
+import { formatIndonesianDate, getDeadlineCountdown } from './dateUtils';
 
 export type WhatsAppProvider = 'server' | 'link' | 'fonnte' | 'callmebot' | 'webhook';
 
@@ -130,6 +130,42 @@ export function buildWhatsAppLink(phone: string, message: string): string {
   return normalized
     ? `https://wa.me/${normalized}?text=${encoded}`
     : `https://wa.me/?text=${encoded}`;
+}
+
+export function buildSingleScheduleWhatsAppMessage(
+  item: ScheduleItem,
+  studentName?: string
+): string {
+  const meta = CATEGORY_META[item.category];
+  const formattedDate = formatIndonesianDate(item.date, true);
+  const timeRange = item.endTime ? `${item.startTime} – ${item.endTime}` : item.startTime;
+  const lines: string[] = [
+    studentName
+      ? `*My Schedule — Pengingat (${studentName})*`
+      : '*My Schedule — Pengingat Jadwal*',
+    '',
+    `📌 *${item.title}*`,
+    `🏷️ Kategori: ${meta.label}`,
+    `📅 Tanggal: ${formattedDate}`,
+    `⏰ Jam: ${timeRange}`,
+  ];
+
+  const place = item.room || item.location;
+  if (place) {
+    lines.push(`📍 Lokasi/Ruang: ${place}`);
+  }
+  if (item.category === 'matkul' && item.lecturer) {
+    lines.push(`👩‍🏫 Dosen: ${item.lecturer}${item.sks ? ` (${item.sks} SKS)` : ''}`);
+  }
+  if (item.category === 'rapat_deadline') {
+    const countdown = getDeadlineCountdown(item.date, item.startTime, item.completed);
+    lines.push(`⏳ Status Waktu: ${countdown.label}`);
+  }
+  if (item.notes) {
+    lines.push(`📝 Catatan: ${item.notes}`);
+  }
+  lines.push('', '_Dikirim dari My Schedule Planner ✨_');
+  return lines.join('\n');
 }
 
 export function buildScheduleWhatsAppMessage(

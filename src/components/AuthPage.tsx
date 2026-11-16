@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   updateProfile,
 } from 'firebase/auth';
 import {
@@ -126,7 +127,23 @@ export default function AuthPage({
       await signInWithPopup(auth, googleProvider);
       onClose?.();
     } catch (err) {
-      setErrorMsg(mapFirebaseAuthError(err));
+      const code = (err as { code?: string })?.code || '';
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
+      const isIOS = /iphone|ipad|ipod/.test(ua) || (ua.includes('mac') && 'ontouchend' in document);
+      if (
+        code === 'auth/popup-blocked' ||
+        code === 'auth/operation-not-supported-in-this-environment' ||
+        (isIOS && code === 'auth/cancelled-popup-request')
+      ) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr) {
+          setErrorMsg(mapFirebaseAuthError(redirectErr));
+        }
+      } else {
+        setErrorMsg(mapFirebaseAuthError(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -415,7 +432,7 @@ export default function AuthPage({
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] dark:bg-slate-950 flex flex-col justify-center px-4 py-10 sm:px-6 lg:px-8 transition-colors">
+    <div className="min-h-[100dvh] bg-[#FAF9F6] dark:bg-slate-950 flex flex-col justify-center px-4 py-10 sm:px-6 lg:px-8 transition-colors">
       <div className="mx-auto w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
         <div className="lg:col-span-6 rounded-3xl bg-white/80 dark:bg-slate-900/85 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 p-8 sm:p-10 shadow-[0_8px_32px_rgba(45,55,72,0.05)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] flex flex-col justify-between">
           <div>
